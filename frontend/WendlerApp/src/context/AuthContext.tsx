@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { AuthService, User } from '../services/authService';
+import { AuthService } from '../services/authService';
+import { ApiService, User } from '../services/apiService';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: () => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,12 +26,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
-      const currentUser = await AuthService.getCurrentUser();
+      // Check if we have a token
+      const token = await AuthService.getToken();
+      if (!token) {
+        setUser(null);
+        return;
+      }
+      
+      // Get full user data from API
+      const currentUser = await ApiService.getCurrentUser();
       setUser(currentUser);
     } catch (error) {
       console.error('Error checking auth status:', error);
+      // Clear invalid token
+      await AuthService.removeToken();
+      setUser(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const refreshUser = async () => {
+    try {
+      const currentUser = await ApiService.getCurrentUser();
+      setUser(currentUser);
+    } catch (error) {
+      console.error('Error refreshing user:', error);
+      throw error;
     }
   };
 
@@ -38,7 +61,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true);
       const token = await AuthService.loginWithGoogle();
       await AuthService.storeToken(token);
-      const currentUser = await AuthService.getCurrentUser();
+      // Get full user data from API after login
+      const currentUser = await ApiService.getCurrentUser();
       setUser(currentUser);
     } catch (error) {
       console.error('Login error:', error);
@@ -61,6 +85,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loading,
     login,
     logout,
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,97 +1,130 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Wendler 5-3-1 Frontend
 
-# Getting Started
+React Native frontend for the Wendler 5-3-1 workout tracking application. Built with React Native Web for cross-platform support (web, iOS, Android).
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Features
 
-## Step 1: Start Metro
+- **Cross-Platform**: Runs on web, iOS, and Android from single codebase
+- **OAuth Authentication**: Social login with Google, GitHub, Facebook
+- **Onboarding Flow**: New user setup with 1RM entry for 4 main lifts
+- **User Dashboard**: View saved 1RM records and workout progress
+- **Responsive Design**: Optimized for both mobile and web interfaces
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## Setup
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+### Prerequisites
+- Node.js 18+
+- npm or yarn
 
-```sh
-# Using npm
-npm start
+### First Time Setup
 
-# OR using Yarn
-yarn start
+1. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+2. **Configure backend URL** (if needed):
+   Edit `src/services/authService.ts` and `src/services/apiService.ts`:
+   ```typescript
+   const BACKEND_URL = 'http://localhost:8000'; // Change if backend runs elsewhere
+   ```
+
+## Running
+
+### Web Development
+```bash
+npm run web
 ```
+Opens at `http://localhost:3000`
 
-## Step 2: Build and run your app
+### React Native (Mobile)
+First, make sure you have React Native development environment set up:
+- [React Native CLI Quickstart](https://reactnative.dev/docs/environment-setup)
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
-```
-
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
+#### iOS (macOS only):
+```bash
 npm run ios
-
-# OR using Yarn
-yarn ios
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+#### Android:
+```bash
+npm run android
+```
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+### Other Commands
+- `npm run start` - Start Metro bundler
+- `npm run lint` - Run ESLint
+- `npm test` - Run tests
+- `npm run build:web` - Build for web production
 
-## Step 3: Modify your app
+## Project Structure
 
-Now that you have successfully run the app, let's make changes!
+```
+frontend/WendlerApp/
+├── App.tsx                           # Main app component
+├── src/
+│   ├── components/                   # Reusable UI components
+│   ├── context/
+│   │   └── AuthContext.tsx          # Authentication state management
+│   ├── screens/
+│   │   ├── MainScreen.tsx           # Main dashboard
+│   │   └── OnboardingScreen.tsx     # 1RM setup for new users
+│   ├── services/
+│   │   ├── authService.ts           # OAuth authentication logic
+│   │   └── apiService.ts            # Backend API communication
+│   └── utils/
+│       └── storage.ts               # Cross-platform storage utilities
+├── public/                          # Web-specific assets
+├── webpack.config.js                # Web bundling configuration
+├── babel.config.js                  # Babel configuration
+└── metro.config.js                  # React Native bundler config
+```
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+## User Flow
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+1. **Login**: User clicks "Login with Google" and authenticates via OAuth
+2. **Onboarding**: New users enter their 1RM for:
+   - Squat
+   - Bench Press
+   - Deadlift
+   - Overhead Press
+3. **Dashboard**: Returning users see their saved 1RM records
+4. **Future**: Workout tracking and progression features
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+## Platform-Specific Notes
 
-## Congratulations! :tada:
+### Web
+- Uses localStorage for token storage
+- Handles OAuth popup flow
+- Responsive design for desktop/mobile browsers
 
-You've successfully run and modified your React Native App. :partying_face:
+### Mobile (Coming Soon)
+- Uses AsyncStorage for token storage
+- Native OAuth integration
+- Touch-optimized interface
 
-### Now what?
+## Configuration
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+The app automatically detects the platform and adjusts behavior:
 
-# Troubleshooting
+- **Web**: Uses localStorage, popup OAuth flow
+- **Mobile**: Uses AsyncStorage, in-app browser OAuth
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+Backend URL is configured in the service files and can be changed for different environments (development, staging, production).
 
-# Learn More
+## Development
 
-To learn more about React Native, take a look at the following resources:
+### Adding New Screens
+1. Create new component in `src/screens/`
+2. Add navigation logic to `MainScreen.tsx`
+3. Update authentication flow in `AuthContext.tsx` if needed
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+### API Integration
+All backend communication goes through `src/services/apiService.ts`. Add new endpoints here following the existing pattern.
+
+### Styling
+Uses React Native StyleSheet for cross-platform styling. Styles are defined at the bottom of each component file.
+
+---
+
+*For original React Native setup instructions, see [README.react.md](README.react.md)*

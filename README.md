@@ -4,7 +4,7 @@
 [![Backend Tests](https://github.com/the-gigi/wendler-5-3-1/actions/workflows/backend-tests.yml/badge.svg)](https://github.com/the-gigi/wendler-5-3-1/actions/workflows/backend-tests.yml)
 [![Frontend Tests](https://github.com/the-gigi/wendler-5-3-1/actions/workflows/frontend-tests.yml/badge.svg)](https://github.com/the-gigi/wendler-5-3-1/actions/workflows/frontend-tests.yml)
 
-A proper Wendler 5-3-1 app with comprehensive backend and frontend testing!
+A proper [Wendler](https://www.jimwendler.com/pages/about-jim) [5-3-1](https://thefitness.wiki/5-3-1-primer/) app with comprehensive backend and frontend testing!
 
 ## Features
 

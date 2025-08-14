@@ -1,9 +1,8 @@
 # Wendler 5-3-1 Training App
 
-[![CI Pipeline](https://github.com/gigi/wendler-5-3-1/actions/workflows/ci.yml/badge.svg)](https://github.com/gigi/wendler-5-3-1/actions/workflows/ci.yml)
-[![Backend Tests](https://github.com/gigi/wendler-5-3-1/actions/workflows/backend-tests.yml/badge.svg)](https://github.com/gigi/wendler-5-3-1/actions/workflows/backend-tests.yml)
-[![Frontend Tests](https://github.com/gigi/wendler-5-3-1/actions/workflows/frontend-tests.yml/badge.svg)](https://github.com/gigi/wendler-5-3-1/actions/workflows/frontend-tests.yml)
-[![Docker Build](https://github.com/gigi/wendler-5-3-1/actions/workflows/docker.yml/badge.svg)](https://github.com/gigi/wendler-5-3-1/actions/workflows/docker.yml)
+[![CI Pipeline](https://github.com/the-gigi/wendler-5-3-1/actions/workflows/ci.yml/badge.svg)](https://github.com/the-gigi/wendler-5-3-1/actions/workflows/ci.yml)
+[![Backend Tests](https://github.com/the-gigi/wendler-5-3-1/actions/workflows/backend-tests.yml/badge.svg)](https://github.com/the-gigi/wendler-5-3-1/actions/workflows/backend-tests.yml)
+[![Frontend Tests](https://github.com/the-gigi/wendler-5-3-1/actions/workflows/frontend-tests.yml/badge.svg)](https://github.com/the-gigi/wendler-5-3-1/actions/workflows/frontend-tests.yml)
 
 A proper Wendler 5-3-1 app with comprehensive backend and frontend testing!
 
@@ -53,13 +52,13 @@ cd frontend/WendlerApp && npm test       # Frontend tests
 
 Pre-built Docker images are available on GitHub Container Registry:
 
-🐳 **[ghcr.io/gigi/wendler-5-3-1/backend](https://github.com/users/gigi/packages/container/wendler-5-3-1%2Fbackend)**
+🐳 **[ghcr.io/the-gigi/wendler-5-3-1/backend](https://github.com/users/the-gigi/packages/container/wendler-5-3-1%2Fbackend)**
 
 ```bash
 # Pull and run the latest backend image
-docker pull ghcr.io/gigi/wendler-5-3-1/backend:latest
-docker run -p 8000:8000 ghcr.io/gigi/wendler-5-3-1/backend:latest
+docker pull ghcr.io/the-gigi/wendler-5-3-1/backend:latest
+docker run -p 8000:8000 ghcr.io/the-gigi/wendler-5-3-1/backend:latest
 
 # Or use a specific commit SHA
-docker pull ghcr.io/gigi/wendler-5-3-1/backend:main-abc1234
+docker pull ghcr.io/the-gigi/wendler-5-3-1/backend:main-abc1234
 ```

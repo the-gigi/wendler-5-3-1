@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, TextInput, Modal, Animated } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, TextInput, Modal } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { ApiService } from '../services/apiService';
 
@@ -90,8 +90,8 @@ export const CyclesScreen: React.FC = () => {
           setExpandedWorkouts(new Set([getWorkoutKey(activeWorkout, activeCycle.id)]));
         }
       }
-    } catch (error) {
-      console.error('Error fetching cycles:', error);
+    } catch (err) {
+      console.error('Error fetching cycles:', err);
       setError('Failed to load cycles');
     } finally {
       setLoading(false);
@@ -156,8 +156,8 @@ export const CyclesScreen: React.FC = () => {
       setAllCycles(prev => prev.map(cycle => 
         cycle.id === cycleId ? fullCycleData : cycle
       ));
-    } catch (error) {
-      console.error('Error fetching cycle workouts:', error);
+    } catch (err) {
+      console.error('Error fetching cycle workouts:', err);
       // Don't show an alert for this, just log it
     } finally {
       setLoadingCycles(prev => {
@@ -187,8 +187,8 @@ export const CyclesScreen: React.FC = () => {
       await ApiService.createNextCycle();
       Alert.alert('Success', 'Next cycle created successfully!');
       await fetchCycles(); // Refresh data
-    } catch (error) {
-      console.error('Error creating next cycle:', error);
+    } catch (err) {
+      console.error('Error creating next cycle:', err);
       Alert.alert('Error', 'Failed to create next cycle. Please try again.');
       setLoading(false);
     }
@@ -252,8 +252,8 @@ export const CyclesScreen: React.FC = () => {
     try {
       await ApiService.updateWorkoutStatus(workoutId, newStatus);
       await fetchCycles(); // Refresh to show the change
-    } catch (error) {
-      console.error('Error updating workout status:', error);
+    } catch (err) {
+      console.error('Error updating workout status:', err);
       Alert.alert('Error', 'Failed to update workout status. Please try again.');
     }
   };
@@ -333,8 +333,8 @@ export const CyclesScreen: React.FC = () => {
       setHasUnsavedChanges(false);
       
       Alert.alert('Success', 'Workout saved successfully!');
-    } catch (error) {
-      console.error('Error saving workout:', error);
+    } catch (err) {
+      console.error('Error saving workout:', err);
       Alert.alert('Error', 'Failed to save workout. Please try again.');
     } finally {
       setIsSavingWorkout(false);
@@ -383,7 +383,7 @@ export const CyclesScreen: React.FC = () => {
     );
   };
 
-  const renderWorkoutDetails = (workout: WorkoutData, cycle: CycleData) => {
+  const renderWorkoutDetails = (workout: WorkoutData, _cycle: CycleData) => {
     const workoutStatus = getWorkoutStatus(workout);
     
     return (
@@ -530,7 +530,7 @@ export const CyclesScreen: React.FC = () => {
             ) : (
               Object.entries(workoutsByWeek).map(([week, workouts]) => (
                 <View key={week} style={styles.weekSection}>
-                  <Text style={styles.weekTitle}>{getWeekName(parseInt(week))}</Text>
+                  <Text style={styles.weekTitle}>{getWeekName(parseInt(week, 10))}</Text>
                   {workouts.map(workout => {
                     const workoutKey = getWorkoutKey(workout, cycle.id);
                     const isWorkoutExpanded = expandedWorkouts.has(workoutKey);
@@ -565,6 +565,7 @@ export const CyclesScreen: React.FC = () => {
 
   useEffect(() => {
     fetchCycles();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) {

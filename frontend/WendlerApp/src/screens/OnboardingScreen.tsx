@@ -34,7 +34,7 @@ const RECOMMENDED_SPLITS = [
 ];
 
 export const OnboardingScreen: React.FC = () => {
-  const { user, refreshUser } = useAuth();
+  const { refreshUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [data, setData] = useState<OnboardingData>({

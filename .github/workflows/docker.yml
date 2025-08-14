@@ -56,9 +56,23 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Wait for image to be available
+      - name: Wait for image to be available in registry
         if: inputs.push
-        run: sleep 10
+        run: |
+          IMAGE_REF="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main-${{ github.sha }}"
+          echo "Checking if image is available: $IMAGE_REF"
+          
+          for i in {1..30}; do
+            if docker manifest inspect "$IMAGE_REF" >/dev/null 2>&1; then
+              echo "✅ Image is available after $((i*2)) seconds"
+              exit 0
+            fi
+            echo "⏳ Attempt $i/30: Image not yet available, waiting 2 seconds..."
+            sleep 2
+          done
+          
+          echo "❌ Image not available after 60 seconds, failing"
+          exit 1
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master

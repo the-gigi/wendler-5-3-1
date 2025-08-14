@@ -16,3 +16,11 @@ dependencies = [
     "httpx>=0.25.0",
     "itsdangerous>=2.0.0",
 ]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.1.0",
+    "pytest-cov>=6.2.1",
+]

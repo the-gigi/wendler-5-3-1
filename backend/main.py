@@ -17,7 +17,7 @@ from models import (
     OneRM, OneRMCreate, OneRMUpdate, OneRMRead,
     WorkoutSchedule, WorkoutScheduleCreate, WorkoutScheduleRead,
     Cycle, CycleCreate, CycleRead, CycleWithWorkouts,
-    Workout, WorkoutRead, WorkoutUpdate,
+    Workout, WorkoutRead, WorkoutUpdate, WorkoutStatusUpdate,
     OnboardingData
 )
 import crud
@@ -354,14 +354,14 @@ async def update_workout_sets(workout_id: int, sets_data: dict, current_user: Us
     return {"message": "Workout sets updated successfully", "workout": workout}
 
 @app.put("/workouts/{workout_id}/status")
-async def update_workout_status(workout_id: int, status_data: dict, current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+async def update_workout_status(workout_id: int, status_data: WorkoutStatusUpdate, current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     """Update workout status"""
     from models import WORKOUT_STATUSES
-    status = status_data.get("status")
-    if not status or status not in WORKOUT_STATUSES:
+    
+    if status_data.status not in WORKOUT_STATUSES:
         raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {WORKOUT_STATUSES}")
     
-    workout = crud.update_workout_status(session, workout_id, status)
+    workout = crud.update_workout_status(session, workout_id, status_data.status)
     if not workout:
         raise HTTPException(status_code=404, detail="Workout not found")
     return {"message": "Workout status updated successfully", "workout": workout}

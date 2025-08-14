@@ -1,11 +1,11 @@
 from sqlmodel import SQLModel, Field, Relationship, Column, JSON
 from typing import Optional, Dict, List, Any
-from datetime import datetime
-from pydantic import validator
+from datetime import datetime, timezone
+from pydantic import field_validator
 
 # Base classes for different types of models
 class TimestampMixin(SQLModel):
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(default=None)
 
 # User Models
@@ -47,20 +47,23 @@ class OneRMBase(SQLModel):
     weight: float
     unit: str = Field(default="lbs")
     
-    @validator('movement')
+    @field_validator('movement')
+    @classmethod
     def validate_movement(cls, v):
         valid_movements = ["squat", "bench", "deadlift", "overhead_press"]
         if v not in valid_movements:
             raise ValueError(f"Movement must be one of: {valid_movements}")
         return v
     
-    @validator('weight')
+    @field_validator('weight')
+    @classmethod
     def validate_weight(cls, v):
         if v <= 0:
             raise ValueError("Weight must be positive")
         return v
     
-    @validator('unit')
+    @field_validator('unit')
+    @classmethod
     def validate_unit(cls, v):
         if v not in ["lbs", "kg"]:
             raise ValueError("Unit must be 'lbs' or 'kg'")
@@ -80,13 +83,15 @@ class OneRMUpdate(SQLModel):
     weight: Optional[float] = None
     unit: Optional[str] = None
     
-    @validator('weight')
+    @field_validator('weight')
+    @classmethod
     def validate_weight(cls, v):
         if v is not None and v <= 0:
             raise ValueError("Weight must be positive")
         return v
     
-    @validator('unit')
+    @field_validator('unit')
+    @classmethod
     def validate_unit(cls, v):
         if v is not None and v not in ["lbs", "kg"]:
             raise ValueError("Unit must be 'lbs' or 'kg'")
@@ -103,7 +108,8 @@ class WorkoutScheduleBase(SQLModel):
     day1_movements: List[str] = Field(sa_column=Column(JSON))
     day2_movements: List[str] = Field(sa_column=Column(JSON))
     
-    @validator('day1_movements', 'day2_movements')
+    @field_validator('day1_movements', 'day2_movements')
+    @classmethod
     def validate_movements(cls, v):
         if len(v) != 2:
             raise ValueError("Each day must have exactly 2 movements")
@@ -113,8 +119,9 @@ class WorkoutScheduleBase(SQLModel):
                 raise ValueError(f"Movement must be one of: {valid_movements}")
         return v
     
-    @validator('day1_movements')
-    def validate_split_recommendation(cls, v, values):
+    @field_validator('day1_movements')
+    @classmethod
+    def validate_split_recommendation(cls, v):
         # Recommend splitting squat and deadlift
         if 'squat' in v and 'deadlift' in v:
             raise ValueError("Recommend splitting squat and deadlift between different days")
@@ -148,7 +155,7 @@ class SetData(SQLModel):
 class CycleBase(SQLModel):
     cycle_number: int
     training_maxes: Dict[str, float] = Field(sa_column=Column(JSON))
-    start_date: datetime = Field(default_factory=datetime.utcnow)
+    start_date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     is_active: bool = Field(default=True)
 
 class Cycle(CycleBase, TimestampMixin, table=True):
@@ -215,6 +222,16 @@ class WorkoutUpdate(SQLModel):
     completed: Optional[bool] = None
     completed_at: Optional[datetime] = None
 
+class WorkoutStatusUpdate(SQLModel):
+    status: str
+    
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v):
+        if v not in WORKOUT_STATUSES:
+            raise ValueError(f"Status must be one of: {WORKOUT_STATUSES}")
+        return v
+
 # Onboarding Schema (not a table)
 class OnboardingData(SQLModel):
     squat: float
@@ -225,19 +242,22 @@ class OnboardingData(SQLModel):
     day1_movements: List[str]
     day2_movements: List[str]
     
-    @validator('squat', 'bench', 'deadlift', 'overhead_press')
+    @field_validator('squat', 'bench', 'deadlift', 'overhead_press')
+    @classmethod
     def validate_weights(cls, v):
         if v <= 0:
             raise ValueError("All weights must be positive")
         return v
     
-    @validator('unit')
+    @field_validator('unit')
+    @classmethod
     def validate_unit(cls, v):
         if v not in ["lbs", "kg"]:
             raise ValueError("Unit must be 'lbs' or 'kg'")
         return v
     
-    @validator('day1_movements', 'day2_movements')
+    @field_validator('day1_movements', 'day2_movements')
+    @classmethod
     def validate_movements(cls, v):
         if len(v) != 2:
             raise ValueError("Each day must have exactly 2 movements")

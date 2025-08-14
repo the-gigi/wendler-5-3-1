@@ -9,7 +9,7 @@ from models import (
 )
 from wendler_service import WendlerService
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 # User CRUD operations
 def get_user(session: Session, user_id: int) -> Optional[User]:
@@ -40,7 +40,7 @@ def update_user(session: Session, user_id: int, user_update: UserUpdate) -> Opti
         setattr(db_user, field, value)
     
     if user_data:
-        db_user.updated_at = datetime.utcnow()
+        db_user.updated_at = datetime.now(timezone.utc)
     
     session.add(db_user)
     session.commit()
@@ -73,7 +73,7 @@ def update_one_rm(session: Session, user_id: int, movement: str, one_rm_update: 
         setattr(db_one_rm, field, value)
     
     if update_data:
-        db_one_rm.updated_at = datetime.utcnow()
+        db_one_rm.updated_at = datetime.now(timezone.utc)
     
     session.add(db_one_rm)
     session.commit()
@@ -108,7 +108,7 @@ def update_workout_schedule(session: Session, user_id: int, schedule: WorkoutSch
     
     db_schedule.day1_movements = schedule.day1_movements
     db_schedule.day2_movements = schedule.day2_movements
-    db_schedule.updated_at = datetime.utcnow()
+    db_schedule.updated_at = datetime.now(timezone.utc)
     
     session.add(db_schedule)
     session.commit()
@@ -184,7 +184,7 @@ def update_workout_sets(session: Session, workout_id: int, sets_data: dict) -> O
     
     # Update the sets data with actual completed values
     workout.sets_reps_data = sets_data
-    workout.updated_at = datetime.utcnow()
+    workout.updated_at = datetime.now(timezone.utc)
     
     session.add(workout)
     session.commit()
@@ -198,8 +198,8 @@ def complete_workout(session: Session, workout_id: int) -> Optional[Workout]:
     
     workout.completed = True
     workout.status = "completed"
-    workout.completed_at = datetime.utcnow()
-    workout.updated_at = datetime.utcnow()
+    workout.completed_at = datetime.now(timezone.utc)
+    workout.updated_at = datetime.now(timezone.utc)
     
     session.add(workout)
     session.commit()
@@ -214,12 +214,12 @@ def update_workout_status(session: Session, workout_id: int, status: str) -> Opt
     workout.status = status
     if status == "completed":
         workout.completed = True
-        workout.completed_at = datetime.utcnow()
+        workout.completed_at = datetime.now(timezone.utc)
     elif status in ["dnf", "skipped"]:
         workout.completed = False
         workout.completed_at = None
     
-    workout.updated_at = datetime.utcnow()
+    workout.updated_at = datetime.now(timezone.utc)
     
     session.add(workout)
     session.commit()
@@ -247,7 +247,7 @@ def complete_onboarding(session: Session, user_id: int, onboarding_data: Onboard
             # Update existing
             existing.weight = weight
             existing.unit = onboarding_data.unit
-            existing.updated_at = datetime.utcnow()
+            existing.updated_at = datetime.now(timezone.utc)
             session.add(existing)
             session.commit()
             session.refresh(existing)

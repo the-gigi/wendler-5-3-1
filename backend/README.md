@@ -81,6 +81,51 @@ Once running, visit:
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
 
+## Testing
+
+The backend has comprehensive unit tests covering models, CRUD operations, and business logic.
+
+### Running Tests
+
+**Basic test run:**
+```bash
+uv run pytest
+```
+
+**With verbose output:**
+```bash
+uv run pytest -v
+```
+
+**With coverage reporting:**
+```bash
+uv run pytest --cov=. --cov-report=term-missing --disable-warnings
+```
+
+**Run specific test files:**
+```bash
+uv run pytest tests/test_models.py
+uv run pytest tests/test_crud.py
+uv run pytest tests/test_wendler_service.py
+```
+
+### Test Coverage
+
+Current test coverage:
+- **wendler_service.py**: 100% (business logic)
+- **models.py**: 99% (data models & validation)
+- **crud.py**: 93% (database operations)
+- **Overall**: 86% coverage
+
+### Test Structure
+
+- `tests/conftest.py` - Test fixtures and configuration
+- `tests/test_models.py` - Model validation and Pydantic schema tests
+- `tests/test_crud.py` - Database CRUD operation tests
+- `tests/test_wendler_service.py` - Wendler 5-3-1 business logic tests
+
+All tests use in-memory SQLite databases for isolation and run without external dependencies.
+
 ## Project Structure
 
 ```

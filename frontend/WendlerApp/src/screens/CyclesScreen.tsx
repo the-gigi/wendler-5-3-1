@@ -147,13 +147,21 @@ export const CyclesScreen: React.FC = () => {
 
   const isAllWorkoutsCompleted = (): boolean => {
     if (!cycle?.workouts) return false;
-    return cycle.workouts.every(workout => workout.completed);
+    return cycle.workouts.every(workout => {
+      const status = getWorkoutStatus(workout);
+      return status === 'completed' || status === 'dnf' || status === 'skipped';
+    });
   };
 
   const getWorkoutStatus = (workout: WorkoutData): 'completed' | 'in-progress' | 'not-started' | 'dnf' | 'skipped' => {
     return workout.status || 'not-started';
   };
 
+
+  const hasInProgressWorkout = (): boolean => {
+    if (!cycle?.workouts) return false;
+    return cycle.workouts.some(workout => getWorkoutStatus(workout) === 'in-progress');
+  };
 
   const getFirstNotStartedWorkout = (): WorkoutData | null => {
     if (!cycle?.workouts) return null;
@@ -164,21 +172,7 @@ export const CyclesScreen: React.FC = () => {
       return a.day - b.day;
     });
     
-    console.log('=== getFirstNotStartedWorkout Debug ===');
-    console.log('Sorted workouts:', sortedWorkouts.map(w => ({
-      id: w.id,
-      week: w.week,
-      day: w.day,
-      status: getWorkoutStatus(w)
-    })));
-    
     const firstNotStarted = sortedWorkouts.find(workout => getWorkoutStatus(workout) === 'not-started') || null;
-    console.log('First not started workout:', firstNotStarted ? {
-      id: firstNotStarted.id,
-      week: firstNotStarted.week,
-      day: firstNotStarted.day
-    } : 'none');
-    
     return firstNotStarted;
   };
 
@@ -275,47 +269,48 @@ export const CyclesScreen: React.FC = () => {
     }
   };
 
-  const renderWorkout = (workout: WorkoutData, index: number) => (
-    <TouchableOpacity 
-      key={index} 
-      style={getWorkoutCardStyle(workout)}
-      onPress={() => openWorkoutEditor(workout)}
-    >
-      <View style={styles.workoutHeader}>
-        <Text style={styles.workoutTitle}>
-          {getWeekName(workout.week)} - Day {workout.day}
-        </Text>
-        <Text style={styles.workoutDates}>
-          {getWeekDates(workout.week)}
-        </Text>
-        <Text style={styles.workoutMovements}>
-          {workout.movements.map(formatMovementName).join(' • ')}
-        </Text>
-      </View>
-      
-      {workout.movements.map(movement => (
-        <View key={movement} style={styles.movementSection}>
-          <Text style={styles.movementName}>{formatMovementName(movement)}</Text>
-          <View style={styles.setsContainer}>
-            {workout.sets[movement]?.map((set, setIndex) => (
-              <View key={setIndex} style={styles.setRow}>
-                <Text style={styles.setNumber}>Set {setIndex + 1}</Text>
-                <Text style={styles.setDetails}>
-                  {formatWeight(set.actual_weight || set.weight)} lbs × {set.completed_reps || set.reps} ({set.percentage}%)
-                </Text>
-              </View>
-            ))}
+  const renderWorkout = (workout: WorkoutData, index: number) => {
+    const workoutStatus = getWorkoutStatus(workout);
+    const firstNotStarted = getFirstNotStartedWorkout();
+    const shouldShowStartButton = workoutStatus === 'not-started' && 
+                                  firstNotStarted?.id === workout.id && 
+                                  !hasInProgressWorkout();
+    
+    return (
+      <View key={index} style={styles.workoutContainer}>
+        <TouchableOpacity 
+          style={getWorkoutCardStyle(workout)}
+          onPress={() => openWorkoutEditor(workout)}
+        >
+          <View style={styles.workoutHeader}>
+            <Text style={styles.workoutTitle}>
+              {getWeekName(workout.week)} - Day {workout.day}
+            </Text>
+            <Text style={styles.workoutDates}>
+              {getWeekDates(workout.week)}
+            </Text>
+            <Text style={styles.workoutMovements}>
+              {workout.movements.map(formatMovementName).join(' • ')}
+            </Text>
           </View>
-        </View>
-      ))}
-      
-      {(() => {
-        const workoutStatus = getWorkoutStatus(workout);
-        const firstNotStarted = getFirstNotStartedWorkout();
-        const shouldShowStartButton = workoutStatus === 'not-started' && firstNotStarted?.id === workout.id;
-        
-        if (shouldShowStartButton) {
-          return (
+          
+          {workout.movements.map(movement => (
+            <View key={movement} style={styles.movementSection}>
+              <Text style={styles.movementName}>{formatMovementName(movement)}</Text>
+              <View style={styles.setsContainer}>
+                {workout.sets[movement]?.map((set, setIndex) => (
+                  <View key={setIndex} style={styles.setRow}>
+                    <Text style={styles.setNumber}>Set {setIndex + 1}</Text>
+                    <Text style={styles.setDetails}>
+                      {formatWeight(set.actual_weight || set.weight)} lbs × {set.completed_reps || set.reps} ({set.percentage}%)
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ))}
+          
+          {shouldShowStartButton && (
             <TouchableOpacity 
               style={styles.startButton}
               onPress={(e) => {
@@ -325,37 +320,60 @@ export const CyclesScreen: React.FC = () => {
             >
               <Text style={styles.startButtonText}>▶ Start Workout</Text>
             </TouchableOpacity>
-          );
-        } else if (workoutStatus === 'in-progress') {
-          return (
-            <View style={styles.statusDropdownContainer}>
-              <Text style={styles.statusLabel}>Status:</Text>
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={workoutStatus}
-                  style={styles.statusPicker}
-                  onValueChange={(itemValue) => {
-                    if (itemValue !== workoutStatus) {
-                      updateWorkoutStatus(workout.id!, itemValue);
-                    }
-                  }}
-                >
-                  <Picker.Item label="In Progress" value="in-progress" />
-                  <Picker.Item label="Completed" value="completed" />
-                  <Picker.Item label="DNF (Did Not Finish)" value="dnf" />
-                  <Picker.Item label="Skipped" value="skipped" />
-                </Picker>
-              </View>
-            </View>
-          );
-        } else {
-          return (
+          )}
+          
+          {!shouldShowStartButton && workoutStatus !== 'in-progress' && (
             <Text style={styles.tapToEdit}>Tap to {workout.completed ? 'view' : 'edit'}</Text>
-          );
-        }
-      })()}
-    </TouchableOpacity>
-  );
+          )}
+        </TouchableOpacity>
+        
+        {workoutStatus === 'in-progress' && (
+          <View style={styles.statusDropdownSidebar}>
+            <Text style={styles.statusLabel}>Status</Text>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={workoutStatus}
+                style={styles.statusPicker}
+                onValueChange={(itemValue) => {
+                  if (itemValue !== workoutStatus) {
+                    updateWorkoutStatus(workout.id!, itemValue);
+                  }
+                }}
+              >
+                <Picker.Item label="In Progress" value="in-progress" />
+                <Picker.Item label="DNF" value="dnf" />
+                <Picker.Item label="Skipped" value="skipped" />
+              </Picker>
+            </View>
+          </View>
+        )}
+
+        {(workoutStatus === 'completed' || workoutStatus === 'dnf' || workoutStatus === 'skipped') && (
+          <View style={styles.statusDropdownSidebar}>
+            <Text style={styles.statusLabel}>Status</Text>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={workoutStatus}
+                style={styles.statusPicker}
+                onValueChange={(itemValue) => {
+                  if (itemValue !== workoutStatus) {
+                    updateWorkoutStatus(workout.id!, itemValue);
+                  }
+                }}
+              >
+                <Picker.Item label={
+                  workoutStatus === 'completed' ? 'Completed' :
+                  workoutStatus === 'dnf' ? 'DNF' :
+                  'Skipped'
+                } value={workoutStatus} />
+                <Picker.Item label="Reset to Not Started" value="not-started" />
+              </Picker>
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  };
 
   const renderTrainingMaxes = () => (
     <View style={styles.section}>
@@ -630,13 +648,18 @@ const styles = StyleSheet.create({
   },
   
   // Workouts
+  workoutContainer: {
+    flexDirection: 'row',
+    marginBottom: 12,
+    gap: 12,
+  },
   workoutCard: {
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#e0e0e0',
+    flex: 1,
   },
   workoutCardCompleted: {
     backgroundColor: '#f0f8f0',
@@ -649,13 +672,13 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   workoutCardDNF: {
-    backgroundColor: '#fff5f5',
-    borderColor: '#f44336',
+    backgroundColor: '#fce4ec',
+    borderColor: '#e91e63',
     borderWidth: 2,
   },
   workoutCardSkipped: {
     backgroundColor: '#f5f5f5',
-    borderColor: '#9e9e9e',
+    borderColor: '#757575',
     borderWidth: 2,
   },
   tapToEdit: {
@@ -678,26 +701,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  statusDropdownContainer: {
-    paddingTop: 12,
-    paddingHorizontal: 4,
+  statusDropdownSidebar: {
+    width: 140,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    alignSelf: 'flex-start',
   },
   statusLabel: {
     fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+    textAlign: 'center',
   },
   pickerContainer: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#4285F4',
     borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#ddd',
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#4285F4',
   },
   statusPicker: {
-    height: 40,
-    fontSize: 14,
-    color: '#333',
+    height: 36,
+    fontSize: 13,
+    color: 'white',
+    backgroundColor: 'transparent',
   },
   workoutHeader: {
     borderBottomWidth: 1,

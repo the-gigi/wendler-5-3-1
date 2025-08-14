@@ -36,34 +36,149 @@ interface CycleData {
   }>;
 }
 
-
 export const CyclesScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
-  const [cycle, setCycle] = useState<CycleData | null>(null);
+  const [allCycles, setAllCycles] = useState<CycleData[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [editingWorkout, setEditingWorkout] = useState<WorkoutData | null>(null);
   const [workoutChanges, setWorkoutChanges] = useState<Record<string, SetData[]>>({});
-  const [allCycles, setAllCycles] = useState<any[]>([]);
-  const [showHistory, setShowHistory] = useState(false);
   const [isSavingWorkout, setIsSavingWorkout] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
+  // Expansion states
+  const [expandedCycles, setExpandedCycles] = useState<Set<number>>(new Set());
+  const [expandedWorkouts, setExpandedWorkouts] = useState<Set<string>>(new Set());
+  const [loadingCycles, setLoadingCycles] = useState<Set<number>>(new Set());
 
-  const fetchActiveCycle = async () => {
+  const fetchCycles = async () => {
     try {
       setLoading(true);
       setError(null);
-      const cycleData = await ApiService.getActiveCycle();
-      setCycle(cycleData);
       
-      // Also fetch cycle history
-      const cycles = await ApiService.getCycles();
-      setAllCycles(cycles);
+      // Fetch both active cycle and all cycles
+      const [activeCycleData, allCyclesData] = await Promise.all([
+        ApiService.getActiveCycle(),
+        ApiService.getCycles()
+      ]);
+      
+      // Ensure we have valid data
+      if (!Array.isArray(allCyclesData)) {
+        throw new Error('Invalid cycles data received');
+      }
+      
+      // Set all cycles, making sure active cycle is included with full data
+      const cycles = allCyclesData.map((cycle: CycleData) => 
+        cycle.is_active ? { ...cycle, ...activeCycleData } : cycle
+      );
+      
+      // Ensure all cycles have workouts array
+      const cyclesWithWorkouts = cycles.map(cycle => ({
+        ...cycle,
+        workouts: cycle.workouts || []
+      }));
+      
+      setAllCycles(cyclesWithWorkouts.sort((a, b) => b.cycle_number - a.cycle_number));
+      
+      // Auto-expand active cycle
+      const activeCycle = cyclesWithWorkouts.find(c => c.is_active);
+      if (activeCycle) {
+        setExpandedCycles(new Set([activeCycle.id]));
+        
+        // Auto-expand active workout
+        const activeWorkout = getActiveWorkout(activeCycle);
+        if (activeWorkout) {
+          setExpandedWorkouts(new Set([getWorkoutKey(activeWorkout, activeCycle.id)]));
+        }
+      }
     } catch (error) {
-      console.error('Error fetching cycle:', error);
-      setError('Failed to load current cycle');
+      console.error('Error fetching cycles:', error);
+      setError('Failed to load cycles');
     } finally {
       setLoading(false);
     }
+  };
+
+  const getActiveWorkout = (cycle: CycleData): WorkoutData | null => {
+    if (!cycle?.workouts) return null;
+    
+    // Find first in-progress workout
+    const inProgress = cycle.workouts.find(w => getWorkoutStatus(w) === 'in-progress');
+    if (inProgress) return inProgress;
+    
+    // Find first not-started workout
+    const sortedWorkouts = [...cycle.workouts].sort((a, b) => {
+      if (a.week !== b.week) return a.week - b.week;
+      return a.day - b.day;
+    });
+    
+    return sortedWorkouts.find(w => getWorkoutStatus(w) === 'not-started') || null;
+  };
+
+  const getWorkoutKey = (workout: WorkoutData, cycleId: number): string => {
+    return `${cycleId}-${workout.week}-${workout.day}`;
+  };
+
+  const toggleCycleExpansion = async (cycleId: number) => {
+    setExpandedCycles(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(cycleId)) {
+        newSet.delete(cycleId);
+        // Also collapse all workouts in this cycle
+        setExpandedWorkouts(prevWorkouts => {
+          const newWorkoutSet = new Set(prevWorkouts);
+          const cycle = allCycles.find(c => c.id === cycleId);
+          if (cycle?.workouts) {
+            cycle.workouts.forEach(workout => {
+              newWorkoutSet.delete(getWorkoutKey(workout, cycleId));
+            });
+          }
+          return newWorkoutSet;
+        });
+      } else {
+        newSet.add(cycleId);
+        
+        // Fetch full cycle data with workouts if not already loaded
+        const cycle = allCycles.find(c => c.id === cycleId);
+        if (cycle && (!cycle.workouts || cycle.workouts.length === 0)) {
+          fetchCycleWorkouts(cycleId);
+        }
+      }
+      return newSet;
+    });
+  };
+
+  const fetchCycleWorkouts = async (cycleId: number) => {
+    try {
+      setLoadingCycles(prev => new Set(prev).add(cycleId));
+      const fullCycleData = await ApiService.getCycle(cycleId);
+      
+      // Update the cycle in our state with the full data
+      setAllCycles(prev => prev.map(cycle => 
+        cycle.id === cycleId ? fullCycleData : cycle
+      ));
+    } catch (error) {
+      console.error('Error fetching cycle workouts:', error);
+      // Don't show an alert for this, just log it
+    } finally {
+      setLoadingCycles(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(cycleId);
+        return newSet;
+      });
+    }
+  };
+
+  const toggleWorkoutExpansion = (workout: WorkoutData, cycleId: number) => {
+    const key = getWorkoutKey(workout, cycleId);
+    setExpandedWorkouts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(key)) {
+        newSet.delete(key);
+      } else {
+        newSet.add(key);
+      }
+      return newSet;
+    });
   };
 
   const createNextCycle = async () => {
@@ -71,7 +186,7 @@ export const CyclesScreen: React.FC = () => {
       setLoading(true);
       await ApiService.createNextCycle();
       Alert.alert('Success', 'Next cycle created successfully!');
-      await fetchActiveCycle(); // Refresh data
+      await fetchCycles(); // Refresh data
     } catch (error) {
       console.error('Error creating next cycle:', error);
       Alert.alert('Error', 'Failed to create next cycle. Please try again.');
@@ -99,53 +214,17 @@ export const CyclesScreen: React.FC = () => {
     return weekNames[week as keyof typeof weekNames] || `Week ${week}`;
   };
 
-  const getWeekDates = (week: number): string => {
+  const getWeekDates = (week: number, cycle: CycleData): string => {
     if (!cycle?.week_dates?.[week]) return '';
     const dates = cycle.week_dates[week];
     return `${dates.start} - ${dates.end}`;
   };
 
-  const getCurrentWeek = (): number => {
-    if (!cycle?.workouts) return 1;
-    
-    console.log('=== getCurrentWeek Debug ===');
-    console.log('All workouts:', cycle.workouts.map(w => ({
-      id: w.id,
-      week: w.week,
-      day: w.day,
-      completed: w.completed
-    })));
-    
-    // Find the first week that has incomplete workouts
-    const weekCompletionStatus = new Map<number, { total: number, completed: number }>();
-    
-    cycle.workouts.forEach(workout => {
-      const week = workout.week;
-      if (!weekCompletionStatus.has(week)) {
-        weekCompletionStatus.set(week, { total: 0, completed: 0 });
-      }
-      const status = weekCompletionStatus.get(week)!;
-      status.total++;
-      if (workout.completed) {
-        status.completed++;
-      }
-    });
-    
-    console.log('Week completion status:', Object.fromEntries(weekCompletionStatus));
-    
-    for (let week = 1; week <= 4; week++) {
-      const status = weekCompletionStatus.get(week);
-      if (status && status.completed < status.total) {
-        console.log(`Current week determined: ${week} (${status.completed}/${status.total} completed)`);
-        return week;
-      }
-    }
-    
-    console.log('All weeks completed, returning week 4');
-    return 4; // All weeks completed
+  const getWorkoutStatus = (workout: WorkoutData): 'completed' | 'in-progress' | 'not-started' | 'dnf' | 'skipped' => {
+    return workout.status || 'not-started';
   };
 
-  const isAllWorkoutsCompleted = (): boolean => {
+  const isAllWorkoutsCompleted = (cycle: CycleData): boolean => {
     if (!cycle?.workouts) return false;
     return cycle.workouts.every(workout => {
       const status = getWorkoutStatus(workout);
@@ -153,33 +232,26 @@ export const CyclesScreen: React.FC = () => {
     });
   };
 
-  const getWorkoutStatus = (workout: WorkoutData): 'completed' | 'in-progress' | 'not-started' | 'dnf' | 'skipped' => {
-    return workout.status || 'not-started';
-  };
-
-
-  const hasInProgressWorkout = (): boolean => {
+  const hasInProgressWorkout = (cycle: CycleData): boolean => {
     if (!cycle?.workouts) return false;
     return cycle.workouts.some(workout => getWorkoutStatus(workout) === 'in-progress');
   };
 
-  const getFirstNotStartedWorkout = (): WorkoutData | null => {
+  const getFirstNotStartedWorkout = (cycle: CycleData): WorkoutData | null => {
     if (!cycle?.workouts) return null;
     
-    // Sort workouts by week, then day
     const sortedWorkouts = [...cycle.workouts].sort((a, b) => {
       if (a.week !== b.week) return a.week - b.week;
       return a.day - b.day;
     });
     
-    const firstNotStarted = sortedWorkouts.find(workout => getWorkoutStatus(workout) === 'not-started') || null;
-    return firstNotStarted;
+    return sortedWorkouts.find(workout => getWorkoutStatus(workout) === 'not-started') || null;
   };
 
   const updateWorkoutStatus = async (workoutId: number, newStatus: string) => {
     try {
       await ApiService.updateWorkoutStatus(workoutId, newStatus);
-      await fetchActiveCycle(); // Refresh to show the change
+      await fetchCycles(); // Refresh to show the change
     } catch (error) {
       console.error('Error updating workout status:', error);
       Alert.alert('Error', 'Failed to update workout status. Please try again.');
@@ -255,7 +327,7 @@ export const CyclesScreen: React.FC = () => {
         await ApiService.completeWorkout(editingWorkout.id);
       }
       
-      await fetchActiveCycle(); // Refresh data
+      await fetchCycles(); // Refresh data
       setEditingWorkout(null);
       setWorkoutChanges({});
       setHasUnsavedChanges(false);
@@ -269,31 +341,57 @@ export const CyclesScreen: React.FC = () => {
     }
   };
 
-  const renderWorkout = (workout: WorkoutData, index: number) => {
+  const renderWorkoutSummary = (workout: WorkoutData, cycle: CycleData) => {
     const workoutStatus = getWorkoutStatus(workout);
-    const firstNotStarted = getFirstNotStartedWorkout();
+    const firstNotStarted = getFirstNotStartedWorkout(cycle);
     const shouldShowStartButton = workoutStatus === 'not-started' && 
                                   firstNotStarted?.id === workout.id && 
-                                  !hasInProgressWorkout();
+                                  !hasInProgressWorkout(cycle);
     
     return (
-      <View key={index} style={styles.workoutContainer}>
+      <TouchableOpacity 
+        style={styles.workoutSummary}
+        onPress={() => toggleWorkoutExpansion(workout, cycle.id)}
+      >
+        <View style={styles.workoutSummaryHeader}>
+          <Text style={styles.workoutSummaryTitle}>
+            {getWeekName(workout.week)} - Day {workout.day}
+          </Text>
+          <Text style={[styles.workoutStatus, getWorkoutStatusStyle(workoutStatus)]}>
+            {workoutStatus.toUpperCase()}
+          </Text>
+        </View>
+        <Text style={styles.workoutSummaryMovements}>
+          {workout.movements.map(formatMovementName).join(' • ')}
+        </Text>
+        <Text style={styles.workoutSummaryDates}>
+          {getWeekDates(workout.week, cycle)}
+        </Text>
+        
+        {shouldShowStartButton && (
+          <TouchableOpacity 
+            style={styles.startButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              updateWorkoutStatus(workout.id!, 'in-progress');
+            }}
+          >
+            <Text style={styles.startButtonText}>▶ Start Workout</Text>
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  const renderWorkoutDetails = (workout: WorkoutData, cycle: CycleData) => {
+    const workoutStatus = getWorkoutStatus(workout);
+    
+    return (
+      <View style={styles.workoutDetails}>
         <TouchableOpacity 
           style={getWorkoutCardStyle(workout)}
           onPress={() => openWorkoutEditor(workout)}
         >
-          <View style={styles.workoutHeader}>
-            <Text style={styles.workoutTitle}>
-              {getWeekName(workout.week)} - Day {workout.day}
-            </Text>
-            <Text style={styles.workoutDates}>
-              {getWeekDates(workout.week)}
-            </Text>
-            <Text style={styles.workoutMovements}>
-              {workout.movements.map(formatMovementName).join(' • ')}
-            </Text>
-          </View>
-          
           {workout.movements.map(movement => (
             <View key={movement} style={styles.movementSection}>
               <Text style={styles.movementName}>{formatMovementName(movement)}</Text>
@@ -310,21 +408,7 @@ export const CyclesScreen: React.FC = () => {
             </View>
           ))}
           
-          {shouldShowStartButton && (
-            <TouchableOpacity 
-              style={styles.startButton}
-              onPress={(e) => {
-                e.stopPropagation();
-                updateWorkoutStatus(workout.id!, 'in-progress');
-              }}
-            >
-              <Text style={styles.startButtonText}>▶ Start Workout</Text>
-            </TouchableOpacity>
-          )}
-          
-          {!shouldShowStartButton && workoutStatus !== 'in-progress' && (
-            <Text style={styles.tapToEdit}>Tap to {workout.completed ? 'view' : 'edit'}</Text>
-          )}
+          <Text style={styles.tapToEdit}>Tap to {workout.completed ? 'view' : 'edit'}</Text>
         </TouchableOpacity>
         
         {workoutStatus === 'in-progress' && (
@@ -375,124 +459,146 @@ export const CyclesScreen: React.FC = () => {
     );
   };
 
-  const renderTrainingMaxes = () => (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Training Maxes</Text>
-      <View style={styles.tmGrid}>
-        {Object.entries(cycle?.training_maxes || {}).map(([movement, weight]) => (
-          <View key={movement} style={styles.tmCard}>
-            <Text style={styles.tmMovement}>{formatMovementName(movement)}</Text>
-            <Text style={styles.tmWeight}>{formatWeight(weight)} lbs</Text>
+  const getWorkoutStatusStyle = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return { color: '#4caf50' };
+      case 'in-progress':
+        return { color: '#ff9800' };
+      case 'dnf':
+        return { color: '#e91e63' };
+      case 'skipped':
+        return { color: '#757575' };
+      default:
+        return { color: '#666' };
+    }
+  };
+
+  const renderCycle = (cycle: CycleData) => {
+    const isExpanded = expandedCycles.has(cycle.id);
+    const sortedWorkouts = [...(cycle.workouts || [])].sort((a, b) => {
+      if (a.week !== b.week) return a.week - b.week;
+      return a.day - b.day;
+    });
+    
+    // Group workouts by week for better organization
+    const workoutsByWeek = sortedWorkouts.reduce((acc, workout) => {
+      if (!acc[workout.week]) acc[workout.week] = [];
+      acc[workout.week].push(workout);
+      return acc;
+    }, {} as Record<number, WorkoutData[]>);
+
+    return (
+      <View key={cycle.id} style={[styles.cycleCard, cycle.is_active && styles.activeCycleCard]}>
+        <TouchableOpacity 
+          style={styles.cycleHeader}
+          onPress={() => toggleCycleExpansion(cycle.id)}
+        >
+          <View style={styles.cycleHeaderLeft}>
+            <Text style={[styles.cycleTitle, cycle.is_active && styles.activeCycleTitle]}>
+              Cycle {cycle.cycle_number}
+              {cycle.is_active && ' (Current)'}
+            </Text>
+            <Text style={styles.cycleDate}>
+              Started {new Date(cycle.start_date).toLocaleDateString()}
+            </Text>
           </View>
-        ))}
+          <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
+        </TouchableOpacity>
+
+        {isExpanded && (
+          <View style={styles.cycleContent}>
+            {/* Training Maxes */}
+            <View style={styles.trainingMaxesSection}>
+              <Text style={styles.sectionSubtitle}>Training Maxes</Text>
+              <View style={styles.tmGrid}>
+                {Object.entries(cycle.training_maxes || {}).map(([movement, weight]) => (
+                  <View key={movement} style={styles.tmCard}>
+                    <Text style={styles.tmMovement}>{formatMovementName(movement)}</Text>
+                    <Text style={styles.tmWeight}>{formatWeight(weight)} lbs</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* Workouts by Week */}
+            {loadingCycles.has(cycle.id) ? (
+              <View style={styles.loadingWorkoutsContainer}>
+                <ActivityIndicator size="small" color="#4285F4" />
+                <Text style={styles.loadingWorkoutsText}>Loading workouts...</Text>
+              </View>
+            ) : (
+              Object.entries(workoutsByWeek).map(([week, workouts]) => (
+                <View key={week} style={styles.weekSection}>
+                  <Text style={styles.weekTitle}>{getWeekName(parseInt(week))}</Text>
+                  {workouts.map(workout => {
+                    const workoutKey = getWorkoutKey(workout, cycle.id);
+                    const isWorkoutExpanded = expandedWorkouts.has(workoutKey);
+                    
+                    return (
+                      <View key={workoutKey} style={styles.workoutDrawer}>
+                        {renderWorkoutSummary(workout, cycle)}
+                        {isWorkoutExpanded && renderWorkoutDetails(workout, cycle)}
+                      </View>
+                    );
+                  })}
+                </View>
+              ))
+            )}
+
+            {/* Next Cycle Button */}
+            {cycle.is_active && isAllWorkoutsCompleted(cycle) && (
+              <View style={styles.nextCycleSection}>
+                <TouchableOpacity style={styles.nextCycleButton} onPress={createNextCycle}>
+                  <Text style={styles.nextCycleButtonText}>Start Next Cycle</Text>
+                </TouchableOpacity>
+                <Text style={styles.nextCycleInfo}>
+                  Training maxes will be increased: Upper body +5lbs, Lower body +10lbs
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
       </View>
-    </View>
-  );
+    );
+  };
 
   useEffect(() => {
-    fetchActiveCycle();
+    fetchCycles();
   }, []);
 
   if (loading) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#4285F4" />
-        <Text style={styles.loadingText}>Loading cycle...</Text>
+        <Text style={styles.loadingText}>Loading cycles...</Text>
       </View>
     );
   }
 
-  if (error || !cycle) {
+  if (error || allCycles.length === 0) {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.errorText}>
-          {error || 'No active cycle found'}
+          {error || 'No cycles found'}
         </Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchActiveCycle}>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchCycles}>
           <Text style={styles.retryButtonText}>Try Again</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  const currentWeek = getCurrentWeek();
-  const currentWeekWorkouts = cycle.workouts.filter(w => w.week === currentWeek);
-  const allWorkouts = cycle.workouts.sort((a, b) => {
-    if (a.week !== b.week) return a.week - b.week;
-    return a.day - b.day;
-  });
-
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Cycle {cycle.cycle_number}</Text>
-        <Text style={styles.subtitle}>Current: {getWeekName(currentWeek)}</Text>
+        <Text style={styles.title}>Training Cycles</Text>
+        <Text style={styles.subtitle}>{allCycles.length} cycle{allCycles.length !== 1 ? 's' : ''}</Text>
       </View>
 
-      {renderTrainingMaxes()}
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>This Week's Workouts</Text>
-        {currentWeekWorkouts.length > 0 ? (
-          currentWeekWorkouts.map((workout, index) => renderWorkout(workout, index))
-        ) : (
-          <Text style={styles.noWorkoutsText}>All workouts completed this week!</Text>
-        )}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>All Workouts</Text>
-        {allWorkouts.map((workout, index) => renderWorkout(workout, index))}
-      </View>
-
-      {isAllWorkoutsCompleted() && (
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.nextCycleButton} onPress={createNextCycle}>
-            <Text style={styles.nextCycleButtonText}>Start Next Cycle</Text>
-          </TouchableOpacity>
-          <Text style={styles.nextCycleInfo}>
-            Training maxes will be increased: Upper body +5lbs, Lower body +10lbs
-          </Text>
-        </View>
-      )}
-
-      {allCycles.length > 1 && (
-        <View style={styles.section}>
-          <TouchableOpacity 
-            style={styles.historyButton} 
-            onPress={() => setShowHistory(!showHistory)}
-          >
-            <Text style={styles.historyButtonText}>
-              {showHistory ? 'Hide' : 'Show'} Cycle History ({allCycles.length - 1} completed)
-            </Text>
-          </TouchableOpacity>
-          
-          {showHistory && (
-            <View style={styles.historySection}>
-              {allCycles
-                .filter(c => !c.is_active)
-                .sort((a, b) => b.cycle_number - a.cycle_number)
-                .map((pastCycle) => (
-                <View key={pastCycle.id} style={styles.historyCycleCard}>
-                  <Text style={styles.historyCycleTitle}>
-                    Cycle {pastCycle.cycle_number}
-                  </Text>
-                  <Text style={styles.historyCycleDate}>
-                    {new Date(pastCycle.start_date).toLocaleDateString()}
-                  </Text>
-                  <View style={styles.historyTMGrid}>
-                    {Object.entries(pastCycle.training_maxes).map(([movement, weight]) => (
-                      <Text key={movement} style={styles.historyTMText}>
-                        {formatMovementName(movement)}: {formatWeight(weight as number)} lbs
-                      </Text>
-                    ))}
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
-      )}
+      <ScrollView style={styles.scrollContainer}>
+        {allCycles.map(cycle => renderCycle(cycle))}
+      </ScrollView>
 
       {/* Workout Editor Modal */}
       <Modal
@@ -572,7 +678,7 @@ export const CyclesScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
-    </ScrollView>
+    </View>
   );
 };
 
@@ -607,18 +713,66 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
   },
-  section: {
-    marginTop: 20,
-    paddingHorizontal: 20,
+  scrollContainer: {
+    flex: 1,
   },
-  sectionTitle: {
-    fontSize: 22,
+  
+  // Cycle Drawer Styles
+  cycleCard: {
+    backgroundColor: 'white',
+    marginHorizontal: 20,
+    marginVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    overflow: 'hidden',
+  },
+  activeCycleCard: {
+    borderColor: '#4285F4',
+    borderWidth: 2,
+  },
+  cycleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#f8f9fa',
+  },
+  cycleHeaderLeft: {
+    flex: 1,
+  },
+  cycleTitle: {
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 16,
+  },
+  activeCycleTitle: {
+    color: '#4285F4',
+  },
+  cycleDate: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  expandIcon: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: 'bold',
+  },
+  cycleContent: {
+    padding: 20,
   },
   
   // Training Maxes
+  trainingMaxesSection: {
+    marginBottom: 24,
+  },
+  sectionSubtitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+  },
   tmGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -626,36 +780,84 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   tmCard: {
-    backgroundColor: 'white',
+    backgroundColor: '#f8f9fa',
     borderRadius: 8,
-    padding: 16,
+    padding: 12,
     width: '48%',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
   tmMovement: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 8,
+    marginBottom: 4,
     textAlign: 'center',
   },
   tmWeight: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#4285F4',
   },
   
-  // Workouts
-  workoutContainer: {
-    flexDirection: 'row',
+  // Week Sections
+  weekSection: {
+    marginBottom: 24,
+  },
+  weekTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
     marginBottom: 12,
+    paddingHorizontal: 8,
+  },
+  
+  // Workout Drawers
+  workoutDrawer: {
+    marginBottom: 8,
+  },
+  workoutSummary: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  workoutSummaryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  workoutSummaryTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  workoutStatus: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  workoutSummaryMovements: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  workoutSummaryDates: {
+    fontSize: 12,
+    color: '#888',
+  },
+  workoutDetails: {
+    flexDirection: 'row',
+    marginTop: 8,
     gap: 12,
   },
+  
+  // Workout Card Styles (same as before)
   workoutCard: {
     backgroundColor: 'white',
-    borderRadius: 12,
+    borderRadius: 8,
     padding: 16,
     borderWidth: 1,
     borderColor: '#e0e0e0',
@@ -681,28 +883,58 @@ const styles = StyleSheet.create({
     borderColor: '#757575',
     borderWidth: 2,
   },
-  tapToEdit: {
+  movementSection: {
+    marginBottom: 16,
+  },
+  movementName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  setsContainer: {
+    marginLeft: 8,
+  },
+  setRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 2,
+  },
+  setNumber: {
     fontSize: 12,
+    color: '#666',
+  },
+  setDetails: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#333',
+  },
+  tapToEdit: {
+    fontSize: 10,
     color: '#666',
     textAlign: 'center',
     marginTop: 8,
     fontStyle: 'italic',
   },
+  
+  // Start Button
   startButton: {
     backgroundColor: '#4285F4',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 8,
   },
   startButtonText: {
     color: 'white',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
   },
+  
+  // Status Dropdown
   statusDropdownSidebar: {
-    width: 140,
+    width: 120,
     backgroundColor: 'white',
     borderRadius: 8,
     padding: 12,
@@ -711,78 +943,67 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   statusLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 8,
+    marginBottom: 6,
     textAlign: 'center',
   },
   pickerContainer: {
     backgroundColor: '#4285F4',
-    borderRadius: 6,
+    borderRadius: 4,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#4285F4',
   },
   statusPicker: {
-    height: 36,
-    fontSize: 13,
+    height: 30,
+    fontSize: 11,
     color: 'white',
     backgroundColor: 'transparent',
   },
-  workoutHeader: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    paddingBottom: 12,
-    marginBottom: 16,
+  
+  // Next Cycle Section
+  nextCycleSection: {
+    marginTop: 24,
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
   },
-  workoutTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+  nextCycleButton: {
+    backgroundColor: '#34A853',
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  workoutDates: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 2,
-  },
-  workoutMovements: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
-  },
-  movementSection: {
-    marginBottom: 16,
-  },
-  movementName: {
+  nextCycleButtonText: {
+    color: 'white',
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    fontWeight: 'bold',
   },
-  setsContainer: {
-    marginLeft: 12,
-  },
-  setRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-    position: 'relative',
-  },
-  setNumber: {
-    fontSize: 14,
+  nextCycleInfo: {
+    fontSize: 12,
     color: '#666',
-  },
-  setDetails: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
+    textAlign: 'center',
+    lineHeight: 18,
   },
   
-  // States
+  // Loading/Error States
   loadingText: {
     marginTop: 10,
     fontSize: 16,
+    color: '#666',
+  },
+  loadingWorkoutsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  loadingWorkoutsText: {
+    marginLeft: 12,
+    fontSize: 14,
     color: '#666',
   },
   errorText: {
@@ -802,34 +1023,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  noWorkoutsText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
   
-  // Next Cycle
-  nextCycleButton: {
-    backgroundColor: '#34A853',
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  nextCycleButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  nextCycleInfo: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  
-  // Modal styles
+  // Modal styles (same as before)
   modalContainer: {
     flex: 1,
     backgroundColor: 'white',
@@ -851,11 +1046,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  modalClose: {
-    fontSize: 16,
-    color: '#4285F4',
-    fontWeight: '600',
-  },
   modalContent: {
     flex: 1,
     padding: 20,
@@ -867,7 +1057,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#e0e0e0',
   },
   
-  // Edit workout styles
+  // Edit workout styles (same as before)
   editMovementSection: {
     marginBottom: 32,
   },
@@ -946,57 +1136,5 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  
-  // History styles
-  historyButton: {
-    backgroundColor: '#f8f9fa',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    marginBottom: 16,
-  },
-  historyButtonText: {
-    color: '#333',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  historySection: {
-    marginTop: 8,
-  },
-  historyCycleCard: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  historyCycleTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
-  },
-  historyCycleDate: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 12,
-  },
-  historyTMGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  historyTMText: {
-    fontSize: 12,
-    color: '#666',
-    backgroundColor: 'white',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
   },
 });

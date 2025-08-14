@@ -318,6 +318,49 @@ async def get_active_cycle(current_user: User = Depends(get_current_user), sessi
         week_dates=week_dates
     )
 
+@app.get("/cycles/{cycle_id}", response_model=CycleWithWorkouts)
+async def get_cycle(cycle_id: int, current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    """Get a specific cycle with workout data"""
+    # Get the cycle and verify it belongs to the user
+    cycle = session.get(Cycle, cycle_id)
+    if not cycle or cycle.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Cycle not found")
+    
+    # Get workouts for this cycle
+    workouts = crud.get_cycle_workouts(session, cycle.id)
+    
+    # Get week dates
+    week_dates = WendlerService.get_week_dates(cycle.start_date)
+    
+    # Convert to workout data format using SQLModel
+    workout_reads = []
+    for workout in workouts:
+        workout_read = WorkoutRead(
+            id=workout.id,
+            cycle_id=workout.cycle_id,
+            week=workout.week,
+            day=workout.day,
+            movements=workout.movements,
+            sets=workout.sets_reps_data,  # Use the database field name
+            status=workout.status,
+            completed=workout.completed,
+            completed_at=workout.completed_at,
+            created_at=workout.created_at
+        )
+        workout_reads.append(workout_read)
+    
+    return CycleWithWorkouts(
+        id=cycle.id,
+        cycle_number=cycle.cycle_number,
+        training_maxes=cycle.training_maxes,
+        start_date=cycle.start_date,
+        is_active=cycle.is_active,
+        created_at=cycle.created_at,
+        user_id=cycle.user_id,
+        workouts=workout_reads,
+        week_dates=week_dates
+    )
+
 @app.post("/cycles/next")
 async def create_next_cycle(current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     """Create next cycle with progressed training maxes"""

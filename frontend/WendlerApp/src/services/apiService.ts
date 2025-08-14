@@ -290,6 +290,22 @@ export class ApiService {
     }
   }
 
+  static async getCycle(cycleId: number): Promise<CycleWithWorkouts> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${BACKEND_URL}/cycles/${cycleId}`, { headers });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error getting cycle:', error);
+      throw error;
+    }
+  }
+
   static async createNextCycle(): Promise<any> {
     try {
       const headers = await this.getAuthHeaders();

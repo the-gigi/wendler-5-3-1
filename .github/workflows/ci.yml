@@ -88,3 +88,11 @@ jobs:
         else
           echo "✅ All tests passed"
         fi
+
+  docker:
+    name: Build and Push Docker Image
+    needs: [backend, frontend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    uses: ./.github/workflows/docker.yml
+    with:
+      push: true

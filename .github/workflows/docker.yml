@@ -1,8 +1,13 @@
 name: Build and Push Docker Image
 
 on:
-  push:
-    branches: [main]
+  workflow_call:
+    inputs:
+      push:
+        description: 'Push image to registry'
+        required: false
+        default: true
+        type: boolean
   workflow_dispatch:
 
 env:
@@ -15,6 +20,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      security-events: write
 
     steps:
       - name: Checkout repository
@@ -44,7 +50,7 @@ jobs:
         with:
           context: ./backend
           platforms: linux/amd64,linux/arm64
-          push: true
+          push: ${{ inputs.push }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -52,13 +58,14 @@ jobs:
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
+        if: inputs.push
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main-${{ github.sha }}
           format: sarif
           output: trivy-results.sarif
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: inputs.push && always()
         with:
           sarif_file: trivy-results.sarif

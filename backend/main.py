@@ -107,6 +107,10 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 async def root():
     return {"message": "Wendler 5-3-1 API"}
 
+@app.get("/health")
+async def health():
+    return {"status": "healthy"}
+
 @app.get("/auth/{provider}")
 async def login(provider: str, request: Request):
     if provider not in ['google', 'github', 'facebook']:

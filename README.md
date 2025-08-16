@@ -103,7 +103,12 @@ The frontend is automatically deployed to GitHub Pages at:
 
 🌐 **[https://the-gigi.github.io/wendler-5-3-1](https://the-gigi.github.io/wendler-5-3-1)**
 
-The deployment happens automatically when changes are pushed to the `frontend/WendlerApp/` directory on the main branch.
+### First-time setup:
+1. Go to your repository **Settings** → **Pages**
+2. Under **Source**, select **"GitHub Actions"**
+3. Click **Save**
+
+The deployment then happens automatically when changes are pushed to the `frontend/WendlerApp/` directory on the main branch.
 
 ## Backend Deployment
 

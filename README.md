@@ -4,8 +4,13 @@
 [![Backend Tests](https://github.com/the-gigi/wendler-5-3-1/actions/workflows/backend-tests.yml/badge.svg)](https://github.com/the-gigi/wendler-5-3-1/actions/workflows/backend-tests.yml)
 [![Frontend Tests](https://github.com/the-gigi/wendler-5-3-1/actions/workflows/frontend-tests.yml/badge.svg)](https://github.com/the-gigi/wendler-5-3-1/actions/workflows/frontend-tests.yml)
 
-A proper [Wendler](https://www.jimwendler.com/pages/about-jim) [5-3-1](https://thefitness.wiki/5-3-1-primer/) app with
-comprehensive backend and frontend testing!
+A proper [Wendler](https://www.jimwendler.com/pages/about-jim) [5-3-1](https://thefitness.wiki/5-3-1-primer/) app with comprehensive backend and frontend testing!
+
+## 🚀 Quick Start for Users
+
+**Use the app now:** 🌐 **[https://the-gigi.github.io/wendler-5-3-1](https://the-gigi.github.io/wendler-5-3-1)**
+
+The frontend is deployed automatically to GitHub Pages and connects to a live backend running on Google Cloud Platform.
 
 ## Features
 
@@ -45,12 +50,35 @@ All tests run automatically on push/PR via GitHub Actions:
 
 ```bash
 # Run all tests with a single command
-./run-tests.sh
+./scripts/run-tests.sh
 
 # Or run tests individually:
 cd backend && uv run pytest --cov=.      # Backend tests
 cd frontend/WendlerApp && npm test       # Frontend tests
 ```
+
+## Deployment Overview
+
+This application uses a modern, automated deployment setup:
+
+### Frontend (React Native Web)
+- **Platform**: GitHub Pages
+- **URL**: [https://the-gigi.github.io/wendler-5-3-1](https://the-gigi.github.io/wendler-5-3-1)
+- **Deployment**: Automatic via GitHub Actions when `frontend/WendlerApp/` changes
+- **Build**: Webpack production build with environment-specific backend URL
+
+### Backend (FastAPI)
+- **Platform**: Google Cloud Platform (Debian VM)
+- **Containerization**: Docker with multi-platform images
+- **Auto-deployment**: Cron job checks for new images every minute
+- **Database**: SQLite with persistent volume mapping and daily GCS backups
+- **Monitoring**: Container health checks and deployment logs
+
+### Infrastructure
+- **Container Registry**: GitHub Container Registry (GHCR)
+- **CI/CD**: GitHub Actions for testing, building, and deployment
+- **Backup**: Daily SQLite backups to Google Cloud Storage (3-day retention)
+- **Security**: Firewall rules, non-root container execution
 
 ## Docker Images
 
@@ -79,35 +107,46 @@ The deployment happens automatically when changes are pushed to the `frontend/We
 
 ## Backend Deployment
 
-Deploy everything to your GCP Debian instance with a single command:
-
+**First:** Update the GCP configuration variables at the top of `scripts/init.sh` and `scripts/backup-db.sh` for your environment:
 ```bash
-# Deploy everything: firewall, Docker, auto-deployment, and start the app
-./init.sh
+GCP_PROJECT_ID="your-project-id"
+GCP_INSTANCE_NAME="your-instance-name"  
+GCP_ZONE="your-zone"
 ```
 
-The init script automatically detects whether it's running locally or on the GCP instance and does everything:
+Then deploy everything to your GCP Debian instance with a single command:
 
-**When run locally:**
-- ✅ Creates firewall rule to allow port 8000 (idempotent)
-- ✅ Copies itself to the GCP instance and runs it there
-- ✅ Shows you the app URL and next steps
+```bash
+# Run locally to deploy everything to GCP
+./scripts/init.sh
+```
 
-**When run on GCP instance:**
-- ✅ Installs Docker (idempotent - safe to run multiple times)
+**What the init script does:**
+- ✅ Creates GCP firewall rule to allow port 8000 (idempotent)
+- ✅ Copies deployment scripts to the GCP instance  
+- ✅ Remotely installs Docker on the GCP instance (idempotent)
 - ✅ Sets up auto-deployment cron job (checks for updates every minute)
 - ✅ Sets up daily database backup to Google Cloud Storage (2 AM daily)
-- ✅ Pulls and starts the latest backend container with persistent data volume
+- ✅ Creates persistent data directory and starts the backend container
+- ✅ Shows you the app URL and next steps
 
-The data is stored in an SQLite database file at `~/data/wendler.db` (mapped as volume to container).
+The data is stored in an SQLite database file at `~/data/wendler.db` on the GCP instance (mapped as volume to container).
 Daily backups are stored in Google Cloud Storage, keeping the 3 most recent backups.
 
 **Access your app at:** `http://YOUR_EXTERNAL_IP:8000`  
 **API docs at:** `http://YOUR_EXTERNAL_IP:8000/docs`
 
-### Monitoring
+### Host Monitoring
+
+Run the following commands to monitor the deployment (set the variables first):
 
 ```bash
+GCP_PROJECT_ID="playground-161404"
+GCP_INSTANCE_NAME="the-gigi"
+GCP_ZONE="us-west1-c"
+
+gcloud compute ssh --zone $ZONE $GCP_INSTANCE_NAME --project $GCP_PROJECT_ID 
+
 # Check container status
 docker ps
 

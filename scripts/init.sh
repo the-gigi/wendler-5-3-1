@@ -5,7 +5,13 @@
 
 set -e
 
-echo "🚀 Initializing Wendler 5-3-1 deployment on GCP..."
+# =============================================================================
+# Configuration - Update these variables for your environment
+# =============================================================================
+GCP_PROJECT_ID="playground-161404"
+GCP_INSTANCE_NAME="the-gigi"
+GCP_ZONE="us-west1-c"
+# =============================================================================
 
 # Function to install Docker (idempotent)
 install_docker() {
@@ -209,35 +215,53 @@ setup_firewall() {
     echo "🔥 Setting up firewall rule..."
     
     # Check if firewall rule already exists
-    if gcloud compute firewall-rules describe allow-port-8000 --project="playground-161404" >/dev/null 2>&1; then
+    if gcloud compute firewall-rules describe allow-port-8000 --project="$GCP_PROJECT_ID" >/dev/null 2>&1; then
         echo "✅ Firewall rule 'allow-port-8000' already exists"
     else
         echo "🔧 Creating firewall rule to allow port 8000..."
-        gcloud compute firewall-rules create allow-port-8000 --allow tcp:8000 --source-ranges 0.0.0.0/0 --description "Allow port 8000" --project="playground-161404"
+        gcloud compute firewall-rules create allow-port-8000 --allow tcp:8000 --source-ranges 0.0.0.0/0 --description "Allow port 8000" --project="$GCP_PROJECT_ID"
         echo "✅ Firewall rule created successfully!"
     fi
 }
 
-# Check if we're running locally (has gcloud) or remotely (GCP instance)
-if command -v gcloud >/dev/null 2>&1 && [[ -n "${GOOGLE_CLOUD_PROJECT:-}" || -f ~/.config/gcloud/configurations/config_default ]]; then
-    echo "🚀 Detected local environment with gcloud - deploying to GCP instance..."
-    
-    # Setup firewall rule locally
-    setup_firewall
-    
-    # Copy scripts to GCP instance
-    gcloud compute scp init.sh backup-db.sh the-gigi:~ --zone "us-west1-c" --project "playground-161404"
-    
-    # Execute script remotely
-    gcloud compute ssh --zone "us-west1-c" "the-gigi" --project "playground-161404" --command "bash ~/init.sh"
-    
-    # Get and display external IP
-    echo ""
-    echo "🎯 Getting external IP address..."
-    EXTERNAL_IP=$(gcloud compute instances describe the-gigi --zone="us-west1-c" --project="playground-161404" --format="get(networkInterfaces[0].accessConfigs[0].natIP)")
-    echo "🌐 Your app should be available at: http://$EXTERNAL_IP:8000"
-    echo "📊 API docs at: http://$EXTERNAL_IP:8000/docs"
-else
-    # We're running on the remote instance
+# Check if running with force flag to skip local detection
+if [[ "${1:-}" == "--force-remote" ]]; then
+    # Force remote execution (called from gcloud ssh)
     main
+    exit 0
 fi
+
+# Check if we have gcloud available locally
+if ! command -v gcloud >/dev/null 2>&1; then
+    echo "❌ Error: gcloud CLI not found. Please install Google Cloud SDK."
+    echo "Visit: https://cloud.google.com/sdk/docs/install"
+    exit 1
+fi
+
+# This script should only run locally to deploy to GCP
+echo "🚀 Deploying Wendler 5-3-1 to GCP instance..."
+
+# Setup firewall rule locally
+setup_firewall
+
+# Copy scripts to GCP instance
+echo "📁 Copying deployment scripts to GCP instance..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+gcloud compute scp "$SCRIPT_DIR/init.sh" "$SCRIPT_DIR/backup-db.sh" $GCP_INSTANCE_NAME:~ --zone "$GCP_ZONE" --project "$GCP_PROJECT_ID"
+
+# Execute script remotely with force flag
+echo "🔧 Running deployment on GCP instance..."
+gcloud compute ssh --zone "$GCP_ZONE" "$GCP_INSTANCE_NAME" --project "$GCP_PROJECT_ID" --command "bash ~/init.sh --force-remote"
+
+# Get and display external IP
+echo ""
+echo "🎯 Getting external IP address..."
+EXTERNAL_IP=$(gcloud compute instances describe $GCP_INSTANCE_NAME --zone="$GCP_ZONE" --project="$GCP_PROJECT_ID" --format="get(networkInterfaces[0].accessConfigs[0].natIP)")
+echo ""
+echo "🎉 Deployment completed successfully!"
+echo "🌐 Your app is available at: http://$EXTERNAL_IP:8000"
+echo "📊 API docs at: http://$EXTERNAL_IP:8000/docs"
+echo ""
+echo "📋 To monitor:"
+echo "  Auto-deploy logs: gcloud compute ssh $GCP_INSTANCE_NAME --zone=$GCP_ZONE --project=$GCP_PROJECT_ID --command='tail -f ~/logs/auto-deploy.log'"
+echo "  Backup logs: gcloud compute ssh $GCP_INSTANCE_NAME --zone=$GCP_ZONE --project=$GCP_PROJECT_ID --command='tail -f ~/logs/backup.log'"

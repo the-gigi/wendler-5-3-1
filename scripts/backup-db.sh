@@ -5,9 +5,14 @@
 
 set -e
 
-DB_PATH="~/data/wendler.db"
-BUCKET_NAME="wendler-5-3-1-backups"  # Change this to your preferred bucket name
+# =============================================================================
+# Configuration - Update these variables for your environment  
+# =============================================================================
 PROJECT_ID="playground-161404"
+BUCKET_NAME="wendler-5-3-1-backups"  # Change this to your preferred bucket name
+# =============================================================================
+
+DB_PATH="~/data/wendler.db"
 
 echo "$(date): Starting database backup..."
 

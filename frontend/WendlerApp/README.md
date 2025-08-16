@@ -1,6 +1,7 @@
 # Wendler 5-3-1 Frontend
 
-React Native frontend for the Wendler 5-3-1 workout tracking application. Built with React Native Web for cross-platform support (web, iOS, Android).
+React Native frontend for the Wendler 5-3-1 workout tracking application. 
+Built with React Native Web for cross-platform support (web, iOS, Android).
 
 ## Features
 

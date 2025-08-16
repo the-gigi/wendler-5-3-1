@@ -1,6 +1,6 @@
 import { Storage } from '../utils/storage';
 
-const BACKEND_URL = 'http://localhost:8000';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
 const TOKEN_KEY = 'jwt_token';
 
 export interface User {

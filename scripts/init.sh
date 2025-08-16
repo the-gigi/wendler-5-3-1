@@ -152,6 +152,61 @@ EOF
     fi
 }
 
+# Function to setup HTTPS with Caddy (mandatory)
+setup_https() {
+    echo "🔐 Setting up HTTPS reverse proxy..."
+
+    # Install Caddy
+    if ! command -v caddy >/dev/null 2>&1; then
+        echo "📦 Installing Caddy..."
+        sudo apt update
+        sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
+        curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+        curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+        sudo apt update
+        sudo apt install -y caddy
+    else
+        echo "✅ Caddy already installed"
+    fi
+
+    # Get external IP and create domain
+    EXTERNAL_IP=$(curl -s -H "Metadata-Flavor: Google" http://169.254.169.254/computeMetadata/v1/instance/network-interfaces/0/external-ip)
+    DOMAIN="${EXTERNAL_IP//./-}.nip.io"
+
+    echo "🌐 Setting up HTTPS for: https://$DOMAIN"
+
+    # Create Caddyfile
+    sudo tee /etc/caddy/Caddyfile > /dev/null <<EOF
+$DOMAIN {
+    reverse_proxy localhost:8000
+    
+    # Enable CORS for frontend
+    header {
+        Access-Control-Allow-Origin "https://the-gigi.github.io"
+        Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "Content-Type, Authorization"
+        Access-Control-Allow-Credentials "true"
+    }
+    
+    # Handle preflight requests
+    @cors_preflight method OPTIONS
+    respond @cors_preflight 200
+}
+
+# Redirect HTTP to HTTPS
+http://$DOMAIN {
+    redir https://{host}{uri} permanent
+}
+EOF
+
+    # Enable and start Caddy
+    sudo systemctl enable caddy
+    sudo systemctl restart caddy
+
+    echo "✅ HTTPS setup complete!"
+    echo "🌐 Backend available at: https://$DOMAIN"
+}
+
 # Function to start initial container (idempotent)
 start_initial_container() {
     echo "🐳 Setting up initial container..."
@@ -183,6 +238,9 @@ main() {
     # Setup auto-deployment
     setup_auto_deploy
     
+    # Setup HTTPS reverse proxy
+    setup_https
+    
     # Create database directory
     mkdir -p ~/data
     echo "📁 Created database directory: ~/data"
@@ -212,15 +270,24 @@ main() {
 
 # Function to setup firewall rule (idempotent)
 setup_firewall() {
-    echo "🔥 Setting up firewall rule..."
+    echo "🔥 Setting up firewall rules..."
     
-    # Check if firewall rule already exists
+    # Check if backend firewall rule already exists
     if gcloud compute firewall-rules describe allow-port-8000 --project="$GCP_PROJECT_ID" >/dev/null 2>&1; then
         echo "✅ Firewall rule 'allow-port-8000' already exists"
     else
         echo "🔧 Creating firewall rule to allow port 8000..."
         gcloud compute firewall-rules create allow-port-8000 --allow tcp:8000 --source-ranges 0.0.0.0/0 --description "Allow port 8000" --project="$GCP_PROJECT_ID"
-        echo "✅ Firewall rule created successfully!"
+        echo "✅ Firewall rule for port 8000 created successfully!"
+    fi
+    
+    # Check if HTTPS firewall rule already exists
+    if gcloud compute firewall-rules describe allow-http-https --project="$GCP_PROJECT_ID" >/dev/null 2>&1; then
+        echo "✅ Firewall rule 'allow-http-https' already exists"
+    else
+        echo "🔧 Creating firewall rule to allow HTTP/HTTPS (ports 80, 443)..."
+        gcloud compute firewall-rules create allow-http-https --allow tcp:80,tcp:443 --source-ranges 0.0.0.0/0 --description "Allow HTTP and HTTPS" --project="$GCP_PROJECT_ID"
+        echo "✅ Firewall rule for HTTP/HTTPS created successfully!"
     fi
 }
 
@@ -258,9 +325,12 @@ echo ""
 echo "🎯 Getting external IP address..."
 EXTERNAL_IP=$(gcloud compute instances describe $GCP_INSTANCE_NAME --zone="$GCP_ZONE" --project="$GCP_PROJECT_ID" --format="get(networkInterfaces[0].accessConfigs[0].natIP)")
 echo ""
+# Get HTTPS domain
+DOMAIN="${EXTERNAL_IP//./-}.nip.io"
 echo "🎉 Deployment completed successfully!"
-echo "🌐 Your app is available at: http://$EXTERNAL_IP:8000"
-echo "📊 API docs at: http://$EXTERNAL_IP:8000/docs"
+echo "🌐 Your app is available at: https://$DOMAIN"
+echo "📊 API docs at: https://$DOMAIN/docs"
+echo "🔓 Backend also available at: http://$EXTERNAL_IP:8000"
 echo ""
 echo "📋 To monitor:"
 echo "  Auto-deploy logs: gcloud compute ssh $GCP_INSTANCE_NAME --zone=$GCP_ZONE --project=$GCP_PROJECT_ID --command='tail -f ~/logs/auto-deploy.log'"

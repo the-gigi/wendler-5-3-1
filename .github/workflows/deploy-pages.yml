@@ -49,7 +49,7 @@ jobs:
         cd frontend/WendlerApp
         npm run build:web
       env:
-        REACT_APP_BACKEND_URL: http://34.83.189.212:8000
+        REACT_APP_BACKEND_URL: https://34-83-189-212.nip.io
 
     - name: Setup Pages
       uses: actions/configure-pages@v5

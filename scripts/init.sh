@@ -170,8 +170,22 @@ setup_https() {
     fi
 
     # Get external IP and create domain
-    EXTERNAL_IP=$(curl -s -H "Metadata-Flavor: Google" http://169.254.169.254/computeMetadata/v1/instance/network-interfaces/0/external-ip)
+    echo "📡 Getting external IP from metadata service..."
+    EXTERNAL_IP=$(curl -s -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/external-ip")
+    
+    if [[ -z "$EXTERNAL_IP" || "$EXTERNAL_IP" == *"<"* ]]; then
+        echo "❌ Failed to get external IP from metadata service"
+        echo "🔧 Trying alternative method..."
+        EXTERNAL_IP=$(curl -s ifconfig.me || curl -s ipinfo.io/ip || echo "UNKNOWN")
+    fi
+    
+    if [[ "$EXTERNAL_IP" == "UNKNOWN" ]]; then
+        echo "❌ Could not determine external IP. Please set EXTERNAL_IP environment variable."
+        exit 1
+    fi
+    
     DOMAIN="${EXTERNAL_IP//./-}.nip.io"
+    echo "🌐 External IP: $EXTERNAL_IP"
 
     echo "🌐 Setting up HTTPS for: https://$DOMAIN"
 
@@ -258,7 +272,7 @@ main() {
     fi
     
     # Get external IP
-    EXTERNAL_IP=$(curl -s -H "Metadata-Flavor: Google" http://169.254.169.254/computeMetadata/v1/instance/network-interfaces/0/external-ip 2>/dev/null || echo "UNKNOWN")
+    EXTERNAL_IP=$(curl -s -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/external-ip" 2>/dev/null || curl -s ifconfig.me 2>/dev/null || echo "UNKNOWN")
     
     echo ""
     echo "🎉 Initialization complete!"

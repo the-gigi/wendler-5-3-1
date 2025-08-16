@@ -1,6 +1,7 @@
 import { Storage } from '../utils/storage';
 
-const BACKEND_URL = 'http://localhost:8000';
+// Use environment variable or fallback to localhost for development
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
 
 export interface User {
   id: number;

@@ -1,12 +1,24 @@
 const path = require('path');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-module.exports = {
-  mode: 'development',
-  entry: './index.web.js',
-  output: {
-    path: path.resolve(__dirname, 'dist'),
-    filename: 'bundle.js',
-  },
+module.exports = (env, argv) => {
+  const isProduction = argv.mode === 'production';
+  
+  return {
+    mode: argv.mode || 'development',
+    entry: './index.web.js',
+    output: {
+      path: path.resolve(__dirname, 'dist'),
+      filename: isProduction ? '[name].[contenthash].js' : 'bundle.js',
+      publicPath: isProduction ? '/wendler-5-3-1/' : '/',
+      clean: true,
+    },
+    plugins: [
+      new HtmlWebpackPlugin({
+        template: './public/index.html',
+        title: 'Wendler 5-3-1 Training App',
+      }),
+    ],
   module: {
     rules: [
       {
@@ -31,11 +43,12 @@ module.exports = {
       'react-native$': 'react-native-web',
     },
   },
-  devServer: {
-    static: {
-      directory: path.join(__dirname, 'public'),
+    devServer: {
+      static: {
+        directory: path.join(__dirname, 'public'),
+      },
+      port: 3000,
+      hot: true,
     },
-    port: 3000,
-    hot: true,
-  },
+  };
 };

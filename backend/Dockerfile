@@ -15,6 +15,7 @@ RUN groupadd --gid 1000 appuser && \
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         curl \
+        sqlite3 \
         build-essential && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*

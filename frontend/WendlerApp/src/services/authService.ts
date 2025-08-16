@@ -32,7 +32,8 @@ export class AuthService {
         
         // Listen for postMessage from popup
         const messageListener = (event: MessageEvent) => {
-          if (event.origin !== BACKEND_URL) return;
+          const backendOrigin = new URL(BACKEND_URL).origin;
+          if (event.origin !== backendOrigin) return;
           
           clearTimeout(timeout);
           window.removeEventListener('message', messageListener);

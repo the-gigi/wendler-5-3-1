@@ -51,7 +51,7 @@ jobs:
         # Disable Jekyll processing
         touch dist/.nojekyll
       env:
-        REACT_APP_BACKEND_URL: https://34-83-189-212.nip.io
+        REACT_APP_BACKEND_URL: https://34-168-238-179.nip.io
 
     - name: Setup Pages
       uses: actions/configure-pages@v5

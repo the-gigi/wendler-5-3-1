@@ -315,7 +315,7 @@ setup_vm_scopes() {
         return 0
     fi
     
-    echo "⚙️  Adding cloud-platform scope to VM for Secret Manager access..."
+    echo "⚙️  VM needs cloud-platform scope for Secret Manager access"
     echo "🛑 Stopping VM to modify scopes..."
     gcloud compute instances stop "$GCP_INSTANCE_NAME" --zone="$GCP_ZONE" --project="$GCP_PROJECT_ID" --quiet
     
@@ -330,8 +330,9 @@ setup_vm_scopes() {
     gcloud compute instances start "$GCP_INSTANCE_NAME" --zone="$GCP_ZONE" --project="$GCP_PROJECT_ID" --quiet
     
     echo "⏳ Waiting for VM to be ready..."
-    gcloud compute instances describe "$GCP_INSTANCE_NAME" --zone="$GCP_ZONE" --project="$GCP_PROJECT_ID" --format="value(status)" | while read status; do
-        if [ "$status" = "RUNNING" ]; then
+    while true; do
+        STATUS=$(gcloud compute instances describe "$GCP_INSTANCE_NAME" --zone="$GCP_ZONE" --project="$GCP_PROJECT_ID" --format="value(status)")
+        if [ "$STATUS" = "RUNNING" ]; then
             break
         fi
         sleep 2

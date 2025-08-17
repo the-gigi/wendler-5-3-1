@@ -307,6 +307,10 @@ main() {
 setup_secrets() {
     echo "🔐 Setting up Google OAuth secrets..."
     
+    # Enable Secret Manager API
+    echo "📡 Enabling Secret Manager API..."
+    gcloud services enable secretmanager.googleapis.com --project="$GCP_PROJECT_ID" >/dev/null 2>&1 || true
+    
     # Check if backend/.env exists locally
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     ENV_FILE="$SCRIPT_DIR/../backend/.env"

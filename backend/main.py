@@ -33,6 +33,15 @@ create_db_and_tables()
 # Add session middleware for OAuth
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("JWT_SECRET", "your-secret-key"))
 
+# Add middleware to handle HTTPS proxy headers
+@app.middleware("http")
+async def https_redirect_middleware(request: Request, call_next):
+    # Trust X-Forwarded-Proto header from Caddy
+    if request.headers.get("x-forwarded-proto") == "https":
+        request.scope["scheme"] = "https"
+    response = await call_next(request)
+    return response
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

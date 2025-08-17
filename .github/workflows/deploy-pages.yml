@@ -48,6 +48,8 @@ jobs:
       run: |
         cd frontend/WendlerApp
         npm run build:web
+        # Disable Jekyll processing
+        touch dist/.nojekyll
       env:
         REACT_APP_BACKEND_URL: https://34-83-189-212.nip.io
 

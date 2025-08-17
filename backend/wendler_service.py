@@ -47,6 +47,16 @@ class WendlerService:
                     movement_sets = []
                     tm = training_maxes[movement]
                     
+                    # Generate warmup sets
+                    warmup_sets = [
+                        {"percentage": 0, "reps": 5, "weight": 45, "type": "warmup", "completed_reps": None, "notes": "Empty bar"},
+                        {"percentage": 40, "reps": 5, "weight": WendlerService.calculate_weight(tm, 40), "type": "warmup", "completed_reps": None, "notes": "40% TM"},
+                        {"percentage": 60, "reps": 3, "weight": WendlerService.calculate_weight(tm, 60), "type": "warmup", "completed_reps": None, "notes": "60% TM"}
+                    ]
+                    
+                    # Add warmup sets first
+                    movement_sets.extend(warmup_sets)
+                    
                     # Generate 3 working sets based on template
                     for set_template in week_template:
                         weight = WendlerService.calculate_weight(tm, set_template["percentage"])
@@ -54,7 +64,9 @@ class WendlerService:
                             "percentage": set_template["percentage"],
                             "reps": set_template["reps"],
                             "weight": weight,
-                            "completed_reps": None
+                            "type": "working",
+                            "completed_reps": None,
+                            "notes": None
                         })
                     
                     sets_data[movement] = movement_sets

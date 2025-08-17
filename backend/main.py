@@ -188,7 +188,7 @@ async def callback(provider: str, request: Request, session: Session = Depends(g
                 access_token: '{jwt_token}',
                 token_type: 'bearer',
                 user: {json.dumps(jwt_payload)}
-            }}, 'http://localhost:3000');
+            }}, 'https://the-gigi.github.io');
             window.close();
         </script>
         <p>Login successful! This window should close automatically.</p>

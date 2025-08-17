@@ -59,19 +59,37 @@ export const OnboardingScreen: React.FC = () => {
     }));
   };
 
-  const toggleMovementForDay = (day: 'day1' | 'day2', movement: string) => {
-    const dayKey = `${day}_movements` as keyof OnboardingData;
-    const currentMovements = data[dayKey] as string[];
+  const toggleMovementForDay1 = (movement: string) => {
+    const currentMovements = data.day1_movements;
     
     if (currentMovements.includes(movement)) {
-      // Remove movement
-      const newMovements = currentMovements.filter(m => m !== movement);
-      setData(prev => ({ ...prev, [dayKey]: newMovements }));
+      // Remove movement and recalculate day2
+      const newDay1Movements = currentMovements.filter(m => m !== movement);
+      const allMovements = ['squat', 'bench', 'deadlift', 'overhead_press'];
+      const newDay2Movements = allMovements.filter(m => !newDay1Movements.includes(m));
+      
+      setData(prev => ({ 
+        ...prev, 
+        day1_movements: newDay1Movements,
+        day2_movements: newDay2Movements
+      }));
     } else if (currentMovements.length < 2) {
-      // Add movement if less than 2
-      const newMovements = [...currentMovements, movement];
-      setData(prev => ({ ...prev, [dayKey]: newMovements }));
+      // Add movement if less than 2 and recalculate day2
+      const newDay1Movements = [...currentMovements, movement];
+      const allMovements = ['squat', 'bench', 'deadlift', 'overhead_press'];
+      const newDay2Movements = allMovements.filter(m => !newDay1Movements.includes(m));
+      
+      setData(prev => ({ 
+        ...prev, 
+        day1_movements: newDay1Movements,
+        day2_movements: newDay2Movements
+      }));
     }
+  };
+
+  // Helper function to check if a movement should be disabled
+  const isDay1MovementDisabled = (movement: string): boolean => {
+    return !data.day1_movements.includes(movement) && data.day1_movements.length >= 2;
   };
 
   const validateStep1 = (): boolean => {
@@ -99,12 +117,9 @@ export const OnboardingScreen: React.FC = () => {
       Alert.alert('Error', 'Please select exactly 2 movements for Day 1');
       return false;
     }
-    if (data.day2_movements.length !== 2) {
-      Alert.alert('Error', 'Please select exactly 2 movements for Day 2');
-      return false;
-    }
     
-    // Check if squat and deadlift are on same day (not recommended)
+    // Day 2 is auto-calculated, so we don't need to validate it separately
+    // But check if squat and deadlift are on same day (not recommended)
     const day1HasSquatAndDeadlift = data.day1_movements.includes('squat') && data.day1_movements.includes('deadlift');
     const day2HasSquatAndDeadlift = data.day2_movements.includes('squat') && data.day2_movements.includes('deadlift');
     
@@ -277,48 +292,64 @@ export const OnboardingScreen: React.FC = () => {
         <Text style={styles.sectionTitle}>Or Choose Manually</Text>
         
         <View style={styles.dayContainer}>
-          <Text style={styles.dayTitle}>Day 1 ({data.day1_movements.length}/2)</Text>
+          <Text style={styles.dayTitle}>Day 1 - Select 2 Movements ({data.day1_movements.length}/2)</Text>
           <View style={styles.movementGrid}>
-            {MOVEMENTS.map((movement) => (
-              <TouchableOpacity
-                key={movement.key}
-                style={[
-                  styles.movementButton,
-                  data.day1_movements.includes(movement.key) && styles.movementButtonSelected
-                ]}
-                onPress={() => toggleMovementForDay('day1', movement.key)}
-              >
-                <Text style={[
-                  styles.movementButtonText,
-                  data.day1_movements.includes(movement.key) && styles.movementButtonTextSelected
-                ]}>
-                  {movement.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {MOVEMENTS.map((movement) => {
+              const isSelected = data.day1_movements.includes(movement.key);
+              const isDisabled = isDay1MovementDisabled(movement.key);
+              
+              return (
+                <TouchableOpacity
+                  key={movement.key}
+                  style={[
+                    styles.movementButton,
+                    isSelected && styles.movementButtonSelected,
+                    isDisabled && styles.movementButtonDisabled
+                  ]}
+                  onPress={() => !isDisabled && toggleMovementForDay1(movement.key)}
+                  disabled={isDisabled}
+                >
+                  <Text style={[
+                    styles.movementButtonText,
+                    isSelected && styles.movementButtonTextSelected,
+                    isDisabled && styles.movementButtonTextDisabled
+                  ]}>
+                    {movement.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
         <View style={styles.dayContainer}>
-          <Text style={styles.dayTitle}>Day 2 ({data.day2_movements.length}/2)</Text>
+          <Text style={styles.dayTitle}>Day 2 - Auto-Selected ({data.day2_movements.length}/2)</Text>
           <View style={styles.movementGrid}>
-            {MOVEMENTS.map((movement) => (
-              <TouchableOpacity
-                key={movement.key}
-                style={[
-                  styles.movementButton,
-                  data.day2_movements.includes(movement.key) && styles.movementButtonSelected
-                ]}
-                onPress={() => toggleMovementForDay('day2', movement.key)}
-              >
-                <Text style={[
-                  styles.movementButtonText,
-                  data.day2_movements.includes(movement.key) && styles.movementButtonTextSelected
-                ]}>
-                  {movement.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {MOVEMENTS.map((movement) => {
+              const isSelected = data.day2_movements.includes(movement.key);
+              
+              return (
+                <View
+                  key={movement.key}
+                  style={[
+                    styles.movementButton,
+                    styles.movementButtonAutoSelected,
+                    isSelected && styles.movementButtonSelected
+                  ]}
+                >
+                  <Text style={[
+                    styles.movementButtonText,
+                    styles.movementButtonTextAutoSelected,
+                    isSelected && styles.movementButtonTextSelected
+                  ]}>
+                    {movement.name}
+                  </Text>
+                  {isSelected && (
+                    <Text style={styles.autoSelectedLabel}>Auto-selected</Text>
+                  )}
+                </View>
+              );
+            })}
           </View>
         </View>
       </View>
@@ -510,6 +541,28 @@ const styles = StyleSheet.create({
   movementButtonTextSelected: {
     color: '#4285F4',
     fontWeight: '600',
+  },
+  movementButtonDisabled: {
+    backgroundColor: '#f5f5f5',
+    borderColor: '#e0e0e0',
+    opacity: 0.6,
+  },
+  movementButtonTextDisabled: {
+    color: '#ccc',
+  },
+  movementButtonAutoSelected: {
+    backgroundColor: '#f8f9fa',
+    borderColor: '#e9ecef',
+  },
+  movementButtonTextAutoSelected: {
+    color: '#6c757d',
+    fontStyle: 'italic',
+  },
+  autoSelectedLabel: {
+    fontSize: 10,
+    color: '#6c757d',
+    marginTop: 2,
+    fontStyle: 'italic',
   },
   
   // Navigation styles

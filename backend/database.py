@@ -2,7 +2,7 @@ from sqlmodel import SQLModel, create_engine, Session
 from sqlalchemy.orm import sessionmaker
 import os
 
-DATABASE_URL = "sqlite:///./wendler.db"
+DATABASE_URL = "sqlite:///./data/wendler.db"
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 

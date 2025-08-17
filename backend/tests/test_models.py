@@ -187,6 +187,22 @@ class TestOnboardingData:
         )
         assert onboarding_data.squat == 200.0
         assert onboarding_data.unit == "lbs"
+        assert onboarding_data.day1_movements == ["squat", "overhead_press"]
+        assert onboarding_data.day2_movements == ["bench", "deadlift"]
+    
+    def test_onboarding_data_auto_calculate_day2(self):
+        """Test auto-calculation of day2_movements when not provided."""
+        onboarding_data = OnboardingData(
+            squat=200.0,
+            bench=150.0,
+            deadlift=250.0,
+            overhead_press=100.0,
+            unit="lbs",
+            day1_movements=["squat", "overhead_press"]
+            # day2_movements not provided - should be auto-calculated
+        )
+        assert onboarding_data.day1_movements == ["squat", "overhead_press"]
+        assert onboarding_data.day2_movements == ["bench", "deadlift"]
 
     def test_onboarding_data_invalid_weights(self):
         """Test onboarding data with invalid weights."""

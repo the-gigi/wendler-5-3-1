@@ -240,7 +240,7 @@ class OnboardingData(SQLModel):
     overhead_press: float
     unit: str = "lbs"
     day1_movements: List[str]
-    day2_movements: List[str]
+    day2_movements: Optional[List[str]] = None
     
     @field_validator('squat', 'bench', 'deadlift', 'overhead_press')
     @classmethod
@@ -256,15 +256,33 @@ class OnboardingData(SQLModel):
             raise ValueError("Unit must be 'lbs' or 'kg'")
         return v
     
-    @field_validator('day1_movements', 'day2_movements')
+    @field_validator('day1_movements')
     @classmethod
-    def validate_movements(cls, v):
+    def validate_day1_movements(cls, v):
         if len(v) != 2:
-            raise ValueError("Each day must have exactly 2 movements")
+            raise ValueError("Day 1 must have exactly 2 movements")
         valid_movements = ["squat", "bench", "deadlift", "overhead_press"]
         for movement in v:
             if movement not in valid_movements:
                 raise ValueError(f"Movement must be one of: {valid_movements}")
+        return v
+    
+    def model_post_init(self, __context) -> None:
+        """Auto-calculate day2_movements if not provided"""
+        if self.day2_movements is None:
+            valid_movements = ["squat", "bench", "deadlift", "overhead_press"]
+            self.day2_movements = [movement for movement in valid_movements if movement not in self.day1_movements]
+    
+    @field_validator('day2_movements')
+    @classmethod
+    def validate_day2_movements(cls, v):
+        if v is not None and len(v) != 2:
+            raise ValueError("Day 2 must have exactly 2 movements")
+        if v is not None:
+            valid_movements = ["squat", "bench", "deadlift", "overhead_press"]
+            for movement in v:
+                if movement not in valid_movements:
+                    raise ValueError(f"Movement must be one of: {valid_movements}")
         return v
 
 # Wendler 5-3-1 specific constants

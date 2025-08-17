@@ -427,6 +427,33 @@ async def update_workout_status(workout_id: int, status_data: WorkoutStatusUpdat
     return {"message": "Workout status updated successfully", "workout": workout}
 
 # Onboarding endpoint - updated to include workout schedule
+@app.get("/movements/day2")
+async def get_day2_movements(day1_movements: str):
+    """Get available movements for day 2 based on day 1 selection"""
+    from models import VALID_MOVEMENTS
+    
+    # Parse day1_movements (expecting comma-separated string)
+    try:
+        day1_list = [movement.strip() for movement in day1_movements.split(',')]
+    except:
+        raise HTTPException(status_code=400, detail="Invalid day1_movements format. Use comma-separated values.")
+    
+    # Validate day1 movements
+    if len(day1_list) != 2:
+        raise HTTPException(status_code=400, detail="Day 1 must have exactly 2 movements")
+    
+    for movement in day1_list:
+        if movement not in VALID_MOVEMENTS:
+            raise HTTPException(status_code=400, detail=f"Invalid movement: {movement}")
+    
+    # Calculate remaining movements for day 2
+    day2_movements = [movement for movement in VALID_MOVEMENTS if movement not in day1_list]
+    
+    return {
+        "day1_movements": day1_list,
+        "day2_movements": day2_movements
+    }
+
 @app.post("/onboarding")
 async def complete_onboarding(onboarding_data: OnboardingData, current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     """Complete user onboarding by setting all 4 1RM values and workout schedule"""

@@ -405,7 +405,7 @@ export const CyclesScreen: React.FC = () => {
                     </Text>
                     <Text style={[styles.setDetails, set.type === 'warmup' && styles.warmupSetDetails]}>
                       {formatWeight(set.actual_weight || set.weight)} lbs × {set.completed_reps || set.reps} ({set.percentage}%)
-                      {set.notes && ` - ${set.notes}`}
+                      {set.notes && set.type !== 'warmup' && ` - ${set.notes}`}
                     </Text>
                   </View>
                 ))}
@@ -631,7 +631,7 @@ export const CyclesScreen: React.FC = () => {
                     </Text>
                     <Text style={[styles.editSetTarget, set.type === 'warmup' && styles.editWarmupSetTarget]}>
                       Target: {formatWeight(set.weight)} lbs × {set.reps} ({set.percentage}%)
-                      {set.notes && ` - ${set.notes}`}
+                      {set.notes && set.type !== 'warmup' && ` - ${set.notes}`}
                     </Text>
                     
                     <View style={styles.editInputRow}>

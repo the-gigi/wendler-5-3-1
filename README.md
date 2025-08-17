@@ -183,3 +183,22 @@ gsutil ls gs://wendler-5-3-1-backups/
 # Restore from backup
 gsutil cp gs://wendler-5-3-1-backups/wendler_backup_YYYYMMDD.db ~/data/wendler.db
 ```
+
+## Troubleshooting
+
+### GitHub Pages showing README instead of React app
+
+**Issue**: GitHub Pages displays the repository README.md instead of the deployed React application.
+
+**Root Cause**: GitHub Pages is configured in "legacy" mode (`build_type: "legacy"`) which builds from the repository root containing README.md, overriding GitHub Actions deployments.
+
+**Solution**: 
+1. Go to repository **Settings** → **Pages**
+2. Under **Source**, change from **"Deploy from a branch"** to **"GitHub Actions"**
+3. Click **Save**
+
+**Technical Details**: 
+- Legacy mode uses `{"build_type":"legacy","source":{"branch":"main","path":"/"}}` 
+- This processes Jekyll from repository root, ignoring the `.nojekyll` files in the built artifacts
+- GitHub Actions mode (`build_type: "workflow"`) uses the deployed artifact from the build process
+- The `.nojekyll` file in `frontend/WendlerApp/public/.nojekyll` prevents Jekyll processing when properly configured

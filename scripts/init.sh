@@ -303,6 +303,43 @@ main() {
     echo "🔧 Container status: docker ps"
 }
 
+# Function to setup VM scopes for Secret Manager access (idempotent)
+setup_vm_scopes() {
+    echo "🔧 Checking VM access scopes..."
+    
+    # Check if VM already has cloud-platform scope
+    CURRENT_SCOPES=$(gcloud compute instances describe "$GCP_INSTANCE_NAME" --zone="$GCP_ZONE" --project="$GCP_PROJECT_ID" --format="value(serviceAccounts[].scopes[].flatten())")
+    
+    if echo "$CURRENT_SCOPES" | grep -q "https://www.googleapis.com/auth/cloud-platform"; then
+        echo "✅ VM already has cloud-platform scope for Secret Manager access"
+        return 0
+    fi
+    
+    echo "⚙️  Adding cloud-platform scope to VM for Secret Manager access..."
+    echo "🛑 Stopping VM to modify scopes..."
+    gcloud compute instances stop "$GCP_INSTANCE_NAME" --zone="$GCP_ZONE" --project="$GCP_PROJECT_ID" --quiet
+    
+    echo "🔧 Adding cloud-platform scope..."
+    gcloud compute instances set-service-account "$GCP_INSTANCE_NAME" \
+        --zone="$GCP_ZONE" \
+        --project="$GCP_PROJECT_ID" \
+        --scopes=https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/devstorage.read_only,https://www.googleapis.com/auth/logging.write,https://www.googleapis.com/auth/monitoring.write,https://www.googleapis.com/auth/service.management.readonly,https://www.googleapis.com/auth/servicecontrol,https://www.googleapis.com/auth/trace.append \
+        --quiet
+    
+    echo "🚀 Starting VM with new scopes..."
+    gcloud compute instances start "$GCP_INSTANCE_NAME" --zone="$GCP_ZONE" --project="$GCP_PROJECT_ID" --quiet
+    
+    echo "⏳ Waiting for VM to be ready..."
+    gcloud compute instances describe "$GCP_INSTANCE_NAME" --zone="$GCP_ZONE" --project="$GCP_PROJECT_ID" --format="value(status)" | while read status; do
+        if [ "$status" = "RUNNING" ]; then
+            break
+        fi
+        sleep 2
+    done
+    
+    echo "✅ VM scopes updated successfully!"
+}
+
 # Function to setup secrets in Google Secret Manager (idempotent)
 setup_secrets() {
     echo "🔐 Setting up Google OAuth secrets..."
@@ -411,6 +448,9 @@ echo "🚀 Deploying Wendler 5-3-1 to GCP instance..."
 
 # Setup firewall rule locally
 setup_firewall
+
+# Setup VM scopes for Secret Manager access
+setup_vm_scopes
 
 # Setup secrets (if .env file exists locally)
 setup_secrets

@@ -401,7 +401,7 @@ export const CyclesScreen: React.FC = () => {
                 {workout.sets[movement]?.map((set, setIndex) => (
                   <View key={setIndex} style={[styles.setRow, set.type === 'warmup' && styles.warmupSetRow]}>
                     <Text style={[styles.setNumber, set.type === 'warmup' && styles.warmupSetNumber]}>
-                      {set.type === 'warmup' ? 'W' : 'Set'} {setIndex + 1}
+                      {set.type === 'warmup' ? 'Warmup Set' : 'Work Set'} {setIndex + 1}
                     </Text>
                     <Text style={[styles.setDetails, set.type === 'warmup' && styles.warmupSetDetails]}>
                       {formatWeight(set.actual_weight || set.weight)} lbs × {set.completed_reps || set.reps} ({set.percentage}%)
@@ -627,7 +627,7 @@ export const CyclesScreen: React.FC = () => {
                 {workoutChanges[movement]?.map((set, setIndex) => (
                   <View key={setIndex} style={[styles.editSetRow, set.type === 'warmup' && styles.editWarmupSetRow]}>
                     <Text style={[styles.editSetNumber, set.type === 'warmup' && styles.editWarmupSetNumber]}>
-                      {set.type === 'warmup' ? 'Warmup' : 'Set'} {setIndex + 1}
+                      {set.type === 'warmup' ? 'Warmup Set' : 'Work Set'} {setIndex + 1}
                     </Text>
                     <Text style={[styles.editSetTarget, set.type === 'warmup' && styles.editWarmupSetTarget]}>
                       Target: {formatWeight(set.weight)} lbs × {set.reps} ({set.percentage}%)

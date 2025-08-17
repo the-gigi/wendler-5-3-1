@@ -84,7 +84,7 @@ setup_auto_deploy() {
 
 set -e
 
-IMAGE_NAME="ghcr.io/the-gigi/wendler-5-3-1:latest"
+IMAGE_NAME="ghcr.io/the-gigi/wendler-5-3-1/backend:latest"
 CONTAINER_NAME="wendler-backend"
 PORT="8000"
 
@@ -238,12 +238,12 @@ start_initial_container() {
     GOOGLE_CLIENT_SECRET=$(gcloud secrets versions access latest --secret="wendler-google-client-secret" 2>/dev/null || echo "")
     
     # Pull and run the backend container with volume mount and secrets
-    docker pull ghcr.io/the-gigi/wendler-5-3-1:latest
+    docker pull ghcr.io/the-gigi/wendler-5-3-1/backend:latest
     docker run -d --name wendler-backend -p 8000:8000 -v ~/data:/app/data \
         -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
         -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
         -e FRONTEND_ORIGIN="https://the-gigi.github.io" \
-        ghcr.io/the-gigi/wendler-5-3-1:latest
+        ghcr.io/the-gigi/wendler-5-3-1/backend:latest
     
     echo "✅ Container started successfully!"
 }
@@ -268,7 +268,7 @@ main() {
         start_initial_container
     else
         echo "🐳 Starting initial container with sudo (user not yet in docker group)..."
-        sudo docker pull ghcr.io/the-gigi/wendler-5-3-1:latest || true
+        sudo docker pull ghcr.io/the-gigi/wendler-5-3-1/backend:latest || true
         sudo docker ps --filter "name=wendler-backend" --format "{{.ID}}" | head -1 | xargs -r sudo docker stop 2>/dev/null || true
         sudo docker ps -a --filter "name=wendler-backend" --format "{{.ID}}" | head -1 | xargs -r sudo docker rm 2>/dev/null || true
         # Get secrets from Google Secret Manager
@@ -279,7 +279,7 @@ main() {
             -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
             -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
             -e FRONTEND_ORIGIN="https://the-gigi.github.io" \
-            ghcr.io/the-gigi/wendler-5-3-1:latest
+            ghcr.io/the-gigi/wendler-5-3-1/backend:latest
         echo "✅ Container started successfully!"
     fi
     

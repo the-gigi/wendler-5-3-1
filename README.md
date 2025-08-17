@@ -84,16 +84,17 @@ This application uses a modern, automated deployment setup:
 
 Pre-built Docker images are available on GitHub Container Registry:
 
-🐳 [ghcr.io/the-gigi/wendler-5-3-1:latest](https://github.com/the-gigi/wendler-5-3-1/pkgs/container/wendler-5-3-1)
-
+🐳 *
+*[ghcr.io/the-gigi/wendler-5-3-1/backend](https://github.com/users/the-gigi/packages/container/wendler-5-3-1%2Fbackend)
+**
 
 ```bash
 # Pull and run the latest backend image
-docker pull ghcr.io/the-gigi/wendler-5-3-1:latest
-docker run -p 8000:8000 ghcr.io/the-gigi/wendler-5-3-1:latest
+docker pull ghcr.io/the-gigi/wendler-5-3-1/backend:latest
+docker run -p 8000:8000 ghcr.io/the-gigi/wendler-5-3-1/backend:latest
 
 # Or use a specific commit SHA
-docker pull ghcr.io/the-gigi/wendler-5-3-1:main-abc1234
+docker pull ghcr.io/the-gigi/wendler-5-3-1/backend:main-abc1234
 ```
 
 ## Frontend Deployment

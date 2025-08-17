@@ -118,7 +118,7 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy"}
+    return {"status": "healthy", "frontend_origin": os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")}
 
 @app.get("/auth/{provider}")
 async def login(provider: str, request: Request):

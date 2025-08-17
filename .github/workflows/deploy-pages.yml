@@ -48,12 +48,6 @@ jobs:
       run: |
         cd frontend/WendlerApp
         npm run build:web
-        # Disable Jekyll processing
-        touch dist/.nojekyll
-        # Verify .nojekyll was created
-        ls -la dist/
-        echo "Contents of .nojekyll:"
-        cat dist/.nojekyll || echo "File is empty (which is correct)"
       env:
         REACT_APP_BACKEND_URL: https://34-168-238-179.nip.io
 

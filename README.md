@@ -127,19 +127,26 @@ Then deploy everything to your GCP Debian instance with a single command:
 ```
 
 **What the init script does:**
-- ✅ Creates GCP firewall rule to allow port 8000 (idempotent)
+- ✅ Creates GCP firewall rules for HTTP/HTTPS (80, 443) and backend (8000)
 - ✅ Copies deployment scripts to the GCP instance  
-- ✅ Remotely installs Docker on the GCP instance (idempotent)
+- ✅ Remotely installs Docker and Caddy reverse proxy (idempotent)
+- ✅ Sets up HTTPS with automatic Let's Encrypt certificates
 - ✅ Sets up auto-deployment cron job (checks for updates every minute)
 - ✅ Sets up daily database backup to Google Cloud Storage (2 AM daily)
 - ✅ Creates persistent data directory and starts the backend container
-- ✅ Shows you the app URL and next steps
+- ✅ Shows you the app URLs (HTTPS and HTTP) and next steps
 
 The data is stored in an SQLite database file at `~/data/wendler.db` on the GCP instance (mapped as volume to container).
 Daily backups are stored in Google Cloud Storage, keeping the 3 most recent backups.
 
-**Access your app at:** `http://YOUR_EXTERNAL_IP:8000`  
-**API docs at:** `http://YOUR_EXTERNAL_IP:8000/docs`
+**Access your app at:** `https://YOUR-EXTERNAL-IP.nip.io` (HTTPS with auto SSL)  
+**API docs at:** `https://YOUR-EXTERNAL-IP.nip.io/docs`  
+**Direct backend:** `http://YOUR_EXTERNAL_IP:8000` (HTTP fallback)
+
+**Get your external IP:**
+```bash
+gcloud compute instances describe YOUR_INSTANCE_NAME --zone=YOUR_ZONE --project=YOUR_PROJECT_ID --format="get(networkInterfaces[0].accessConfigs[0].natIP)"
+```
 
 ### Host Monitoring
 

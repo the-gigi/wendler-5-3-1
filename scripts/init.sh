@@ -200,18 +200,6 @@ setup_https() {
     sudo tee /etc/caddy/Caddyfile > /dev/null <<EOF
 $DOMAIN {
     reverse_proxy localhost:8000
-    
-    # Enable CORS for frontend
-    header {
-        Access-Control-Allow-Origin "https://the-gigi.github.io"
-        Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-        Access-Control-Allow-Headers "Content-Type, Authorization"
-        Access-Control-Allow-Credentials "true"
-    }
-    
-    # Handle preflight requests
-    @cors_preflight method OPTIONS
-    respond @cors_preflight 200
 }
 
 # Redirect HTTP to HTTPS

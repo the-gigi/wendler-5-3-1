@@ -34,10 +34,16 @@ if [ "$NEW_IMAGE_ID" != "$RUNNING_IMAGE_ID" ]; then
     # Ensure data directory exists on host
     mkdir -p ~/wendler-data
     
-    # Start new container with specific name and volume mount for database persistence
+    # Get OAuth secrets from Google Secret Manager
+    GOOGLE_CLIENT_ID=$(gcloud secrets versions access latest --secret="wendler-google-client-id" 2>/dev/null || echo "")
+    GOOGLE_CLIENT_SECRET=$(gcloud secrets versions access latest --secret="wendler-google-client-secret" 2>/dev/null || echo "")
+    
+    # Start new container with specific name, volume mount, and OAuth secrets
     docker run -d --name $CONTAINER_NAME -p $PORT:$PORT \
         -v ~/wendler-data:/app/data \
         -e FRONTEND_ORIGIN="https://the-gigi.github.io" \
+        -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
+        -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
         $IMAGE_NAME
     
     echo "$(date): Container updated successfully!"

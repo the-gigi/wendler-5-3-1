@@ -147,14 +147,16 @@ class TestWorkoutGeneration:
         squat_sets = workout1["sets"]["squat"]
         assert len(squat_sets) == 6  # 3 warmup + 3 working sets per movement
         
-        # Check warmup sets
+        # Check warmup sets (proper Wendler protocol)
         assert squat_sets[0]["type"] == "warmup"
-        assert squat_sets[0]["percentage"] == 0
-        assert squat_sets[0]["weight"] == 45  # Empty bar
+        assert squat_sets[0]["percentage"] == 40
+        assert squat_sets[0]["reps"] == 5
         assert squat_sets[1]["type"] == "warmup"
-        assert squat_sets[1]["percentage"] == 40
+        assert squat_sets[1]["percentage"] == 50
+        assert squat_sets[1]["reps"] == 5
         assert squat_sets[2]["type"] == "warmup"
         assert squat_sets[2]["percentage"] == 60
+        assert squat_sets[2]["reps"] == 3
         
         # Check working sets
         assert squat_sets[3]["type"] == "working"
@@ -291,17 +293,12 @@ class TestEdgeCases:
         
         workouts = WendlerService.generate_cycle_workouts(training_maxes, workout_schedule)
         
-        # Should handle gracefully, squat working sets would be 0 (except empty bar warmup)
+        # Should handle gracefully, all squat weights would be 0
         first_workout = workouts[0]
         squat_sets = first_workout["sets"]["squat"]
         
-        # Warmup sets: empty bar stays 45, others are 0
-        assert squat_sets[0]["weight"] == 45  # Empty bar
-        assert squat_sets[1]["weight"] == 0.0  # 40% of 0 TM
-        assert squat_sets[2]["weight"] == 0.0  # 60% of 0 TM
-        
-        # Working sets should all be 0
-        assert all(set_data["weight"] == 0.0 for set_data in squat_sets[3:])
+        # All sets should be 0 when training max is 0
+        assert all(set_data["weight"] == 0.0 for set_data in squat_sets)
 
     def test_very_low_training_max_rounding(self):
         """Test rounding with very low training maxes."""

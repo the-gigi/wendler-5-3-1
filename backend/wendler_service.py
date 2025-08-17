@@ -47,10 +47,10 @@ class WendlerService:
                     movement_sets = []
                     tm = training_maxes[movement]
                     
-                    # Generate warmup sets
+                    # Generate warmup sets (proper Wendler protocol)
                     warmup_sets = [
-                        {"percentage": 0, "reps": 5, "weight": 45, "type": "warmup", "completed_reps": None, "notes": "Empty bar"},
                         {"percentage": 40, "reps": 5, "weight": WendlerService.calculate_weight(tm, 40), "type": "warmup", "completed_reps": None, "notes": "40% TM"},
+                        {"percentage": 50, "reps": 5, "weight": WendlerService.calculate_weight(tm, 50), "type": "warmup", "completed_reps": None, "notes": "50% TM"},
                         {"percentage": 60, "reps": 3, "weight": WendlerService.calculate_weight(tm, 60), "type": "warmup", "completed_reps": None, "notes": "60% TM"}
                     ]
                     

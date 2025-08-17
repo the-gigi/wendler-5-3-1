@@ -31,8 +31,14 @@ if [ "$NEW_IMAGE_ID" != "$RUNNING_IMAGE_ID" ]; then
     docker ps --filter "name=$CONTAINER_NAME" --format "{{.ID}}" | head -1 | xargs -r docker stop
     docker ps -a --filter "name=$CONTAINER_NAME" --format "{{.ID}}" | head -1 | xargs -r docker rm
     
-    # Start new container with specific name
-    docker run -d --name $CONTAINER_NAME -p $PORT:$PORT $IMAGE_NAME
+    # Ensure data directory exists on host
+    mkdir -p ~/wendler-data
+    
+    # Start new container with specific name and volume mount for database persistence
+    docker run -d --name $CONTAINER_NAME -p $PORT:$PORT \
+        -v ~/wendler-data:/app/data \
+        -e FRONTEND_ORIGIN="https://the-gigi.github.io" \
+        $IMAGE_NAME
     
     echo "$(date): Container updated successfully!"
     

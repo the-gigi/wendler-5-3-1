@@ -5,7 +5,7 @@
 
 set -e
 
-IMAGE_NAME="ghcr.io/the-gigi/wendler-5-3-1/backend:latest"
+IMAGE_NAME="ghcr.io/the-gigi/wendler-5-3-1:latest"
 CONTAINER_NAME="wendler-backend"
 PORT="8000"
 

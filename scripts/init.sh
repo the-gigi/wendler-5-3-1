@@ -121,6 +121,7 @@ if [ "$NEW_IMAGE_ID" != "$RUNNING_IMAGE_ID" ]; then
     docker run -d --name $CONTAINER_NAME -p $PORT:$PORT -v ~/data:/app/data \
         -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
         -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
+        -e FRONTEND_ORIGIN="https://the-gigi.github.io" \
         $IMAGE_NAME
     
     echo "$(date): Container updated successfully!"
@@ -241,6 +242,7 @@ start_initial_container() {
     docker run -d --name wendler-backend -p 8000:8000 -v ~/data:/app/data \
         -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
         -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
+        -e FRONTEND_ORIGIN="https://the-gigi.github.io" \
         ghcr.io/the-gigi/wendler-5-3-1/backend:latest
     
     echo "✅ Container started successfully!"
@@ -276,6 +278,7 @@ main() {
         sudo docker run -d --name wendler-backend -p 8000:8000 -v ~/data:/app/data \
             -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
             -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
+            -e FRONTEND_ORIGIN="https://the-gigi.github.io" \
             ghcr.io/the-gigi/wendler-5-3-1/backend:latest
         echo "✅ Container started successfully!"
     fi

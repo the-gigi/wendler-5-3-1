@@ -326,6 +326,26 @@ export class ApiService {
     }
   }
 
+  static async updateCycle(cycleId: number, updateData: { start_date?: string }): Promise<any> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${BACKEND_URL}/cycles/${cycleId}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(updateData),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating cycle:', error);
+      throw error;
+    }
+  }
+
   static async updateWorkoutSets(workoutId: number, setsData: Record<string, SetData[]>): Promise<any> {
     try {
       const headers = await this.getAuthHeaders();

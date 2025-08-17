@@ -47,6 +47,11 @@ export const CyclesScreen: React.FC = () => {
   const [isSavingWorkout, setIsSavingWorkout] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
+  // Cycle editing state
+  const [editingCycle, setEditingCycle] = useState<CycleData | null>(null);
+  const [editingStartDate, setEditingStartDate] = useState<string>('');
+  const [isSavingCycle, setIsSavingCycle] = useState(false);
+  
   // Expansion states
   const [expandedCycles, setExpandedCycles] = useState<Set<number>>(new Set());
   const [expandedWorkouts, setExpandedWorkouts] = useState<Set<string>>(new Set());
@@ -290,6 +295,38 @@ export const CyclesScreen: React.FC = () => {
     setHasUnsavedChanges(false);
   };
 
+  const openCycleEditor = (cycle: CycleData) => {
+    setEditingCycle(cycle);
+    setEditingStartDate(cycle.start_date.split('T')[0]); // Convert to YYYY-MM-DD format
+  };
+
+  const cancelCycleEditor = () => {
+    setEditingCycle(null);
+    setEditingStartDate('');
+  };
+
+  const saveCycleStartDate = async () => {
+    if (!editingCycle) return;
+
+    try {
+      setIsSavingCycle(true);
+      await ApiService.updateCycle(editingCycle.id, {
+        start_date: editingStartDate
+      });
+      
+      await fetchCycles(); // Refresh data
+      setEditingCycle(null);
+      setEditingStartDate('');
+      
+      Alert.alert('Success', 'Cycle start date updated successfully!');
+    } catch (err) {
+      console.error('Error updating cycle:', err);
+      Alert.alert('Error', 'Failed to update cycle start date. Please try again.');
+    } finally {
+      setIsSavingCycle(false);
+    }
+  };
+
   const updateSetData = (movement: string, setIndex: number, field: 'actual_weight' | 'completed_reps', value: string) => {
     const numValue = parseFloat(value) || 0;
     setWorkoutChanges(prev => ({
@@ -504,9 +541,18 @@ export const CyclesScreen: React.FC = () => {
               Cycle {cycle.cycle_number}
               {cycle.is_active && ' (Current)'}
             </Text>
-            <Text style={styles.cycleDate}>
-              Started {new Date(cycle.start_date).toLocaleDateString()}
-            </Text>
+            <TouchableOpacity 
+              style={styles.cycleDateContainer}
+              onPress={(e) => {
+                e.stopPropagation();
+                openCycleEditor(cycle);
+              }}
+            >
+              <Text style={styles.cycleDate}>
+                Started {new Date(cycle.start_date).toLocaleDateString()}
+              </Text>
+              <Text style={styles.editHint}>✏️ Tap to edit</Text>
+            </TouchableOpacity>
           </View>
           <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
         </TouchableOpacity>
@@ -687,6 +733,59 @@ export const CyclesScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Cycle Start Date Editor Modal */}
+      <Modal
+        visible={editingCycle !== null}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>
+              Edit Cycle {editingCycle?.cycle_number} Start Date
+            </Text>
+          </View>
+          
+          <View style={styles.modalContent}>
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Start Date</Text>
+              <TextInput
+                style={styles.editInput}
+                value={editingStartDate}
+                onChangeText={setEditingStartDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor="#999"
+              />
+            </View>
+            
+            <Text style={styles.dateEditNote}>
+              Note: Changing the start date will automatically update all workout dates in this cycle.
+            </Text>
+          </View>
+          
+          <View style={styles.modalFooter}>
+            <View style={styles.footerButtons}>
+              <TouchableOpacity 
+                style={styles.cancelButton} 
+                onPress={cancelCycleEditor}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.saveButton, isSavingCycle && styles.saveButtonDisabled]} 
+                onPress={saveCycleStartDate}
+                disabled={isSavingCycle}
+              >
+                <Text style={styles.saveButtonText}>
+                  {isSavingCycle ? 'Saving...' : 'Save'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -758,10 +857,18 @@ const styles = StyleSheet.create({
   activeCycleTitle: {
     color: '#4285F4',
   },
+  cycleDateContainer: {
+    marginTop: 4,
+  },
   cycleDate: {
     fontSize: 14,
     color: '#666',
-    marginTop: 4,
+  },
+  editHint: {
+    fontSize: 10,
+    color: '#4285F4',
+    marginTop: 2,
+    fontStyle: 'italic',
   },
   expandIcon: {
     fontSize: 16,
@@ -1138,6 +1245,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: 'white',
     color: '#333',
+  },
+  dateEditNote: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    lineHeight: 20,
   },
   footerButtons: {
     flexDirection: 'row',

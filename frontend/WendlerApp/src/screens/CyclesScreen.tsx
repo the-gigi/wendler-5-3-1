@@ -9,6 +9,8 @@ interface SetData {
   weight: number;
   completed_reps?: number;
   actual_weight?: number;
+  type?: 'warmup' | 'working';
+  notes?: string;
 }
 
 interface WorkoutData {
@@ -397,10 +399,13 @@ export const CyclesScreen: React.FC = () => {
               <Text style={styles.movementName}>{formatMovementName(movement)}</Text>
               <View style={styles.setsContainer}>
                 {workout.sets[movement]?.map((set, setIndex) => (
-                  <View key={setIndex} style={styles.setRow}>
-                    <Text style={styles.setNumber}>Set {setIndex + 1}</Text>
-                    <Text style={styles.setDetails}>
+                  <View key={setIndex} style={[styles.setRow, set.type === 'warmup' && styles.warmupSetRow]}>
+                    <Text style={[styles.setNumber, set.type === 'warmup' && styles.warmupSetNumber]}>
+                      {set.type === 'warmup' ? 'W' : 'Set'} {setIndex + 1}
+                    </Text>
+                    <Text style={[styles.setDetails, set.type === 'warmup' && styles.warmupSetDetails]}>
                       {formatWeight(set.actual_weight || set.weight)} lbs × {set.completed_reps || set.reps} ({set.percentage}%)
+                      {set.notes && ` - ${set.notes}`}
                     </Text>
                   </View>
                 ))}
@@ -620,10 +625,13 @@ export const CyclesScreen: React.FC = () => {
               <View key={movement} style={styles.editMovementSection}>
                 <Text style={styles.editMovementName}>{formatMovementName(movement)}</Text>
                 {workoutChanges[movement]?.map((set, setIndex) => (
-                  <View key={setIndex} style={styles.editSetRow}>
-                    <Text style={styles.editSetNumber}>Set {setIndex + 1}</Text>
-                    <Text style={styles.editSetTarget}>
+                  <View key={setIndex} style={[styles.editSetRow, set.type === 'warmup' && styles.editWarmupSetRow]}>
+                    <Text style={[styles.editSetNumber, set.type === 'warmup' && styles.editWarmupSetNumber]}>
+                      {set.type === 'warmup' ? 'Warmup' : 'Set'} {setIndex + 1}
+                    </Text>
+                    <Text style={[styles.editSetTarget, set.type === 'warmup' && styles.editWarmupSetTarget]}>
                       Target: {formatWeight(set.weight)} lbs × {set.reps} ({set.percentage}%)
+                      {set.notes && ` - ${set.notes}`}
                     </Text>
                     
                     <View style={styles.editInputRow}>
@@ -910,6 +918,17 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#333',
   },
+  warmupSetRow: {
+    backgroundColor: '#f0f8ff',
+  },
+  warmupSetNumber: {
+    color: '#4285F4',
+    fontWeight: '600',
+  },
+  warmupSetDetails: {
+    color: '#4285F4',
+    fontStyle: 'italic',
+  },
   tapToEdit: {
     fontSize: 10,
     color: '#666',
@@ -1084,6 +1103,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginBottom: 12,
+  },
+  editWarmupSetRow: {
+    backgroundColor: '#f0f8ff',
+    borderLeftWidth: 4,
+    borderLeftColor: '#4285F4',
+  },
+  editWarmupSetNumber: {
+    color: '#4285F4',
+    fontWeight: '700',
+  },
+  editWarmupSetTarget: {
+    color: '#4285F4',
+    fontStyle: 'italic',
   },
   editInputRow: {
     flexDirection: 'row',

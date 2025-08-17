@@ -113,8 +113,15 @@ if [ "$NEW_IMAGE_ID" != "$RUNNING_IMAGE_ID" ]; then
     # Create database directory if it doesn't exist
     mkdir -p ~/data
     
-    # Start new container with specific name and volume mount
-    docker run -d --name $CONTAINER_NAME -p $PORT:$PORT -v ~/data:/app/data $IMAGE_NAME
+    # Get secrets from Google Secret Manager
+    GOOGLE_CLIENT_ID=$(gcloud secrets versions access latest --secret="wendler-google-client-id" 2>/dev/null || echo "")
+    GOOGLE_CLIENT_SECRET=$(gcloud secrets versions access latest --secret="wendler-google-client-secret" 2>/dev/null || echo "")
+    
+    # Start new container with specific name, volume mount, and secrets
+    docker run -d --name $CONTAINER_NAME -p $PORT:$PORT -v ~/data:/app/data \
+        -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
+        -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
+        $IMAGE_NAME
     
     echo "$(date): Container updated successfully!"
     
@@ -237,9 +244,16 @@ start_initial_container() {
     # Create database directory if it doesn't exist
     mkdir -p ~/data
 
-    # Pull and run the backend container with volume mount
+    # Get secrets from Google Secret Manager
+    GOOGLE_CLIENT_ID=$(gcloud secrets versions access latest --secret="wendler-google-client-id" 2>/dev/null || echo "")
+    GOOGLE_CLIENT_SECRET=$(gcloud secrets versions access latest --secret="wendler-google-client-secret" 2>/dev/null || echo "")
+    
+    # Pull and run the backend container with volume mount and secrets
     docker pull ghcr.io/the-gigi/wendler-5-3-1/backend:latest
-    docker run -d --name wendler-backend -p 8000:8000 -v ~/data:/app/data ghcr.io/the-gigi/wendler-5-3-1/backend:latest
+    docker run -d --name wendler-backend -p 8000:8000 -v ~/data:/app/data \
+        -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
+        -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
+        ghcr.io/the-gigi/wendler-5-3-1/backend:latest
     
     echo "✅ Container started successfully!"
 }
@@ -267,7 +281,14 @@ main() {
         sudo docker pull ghcr.io/the-gigi/wendler-5-3-1/backend:latest || true
         sudo docker ps --filter "name=wendler-backend" --format "{{.ID}}" | head -1 | xargs -r sudo docker stop 2>/dev/null || true
         sudo docker ps -a --filter "name=wendler-backend" --format "{{.ID}}" | head -1 | xargs -r sudo docker rm 2>/dev/null || true
-        sudo docker run -d --name wendler-backend -p 8000:8000 -v ~/data:/app/data ghcr.io/the-gigi/wendler-5-3-1/backend:latest
+        # Get secrets from Google Secret Manager
+        GOOGLE_CLIENT_ID=$(gcloud secrets versions access latest --secret="wendler-google-client-id" 2>/dev/null || echo "")
+        GOOGLE_CLIENT_SECRET=$(gcloud secrets versions access latest --secret="wendler-google-client-secret" 2>/dev/null || echo "")
+        
+        sudo docker run -d --name wendler-backend -p 8000:8000 -v ~/data:/app/data \
+            -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
+            -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
+            ghcr.io/the-gigi/wendler-5-3-1/backend:latest
         echo "✅ Container started successfully!"
     fi
     
@@ -280,6 +301,68 @@ main() {
     echo "📊 API docs at: http://$EXTERNAL_IP:8000/docs"
     echo "📋 Check auto-deploy logs with: tail -f ~/logs/auto-deploy.log"
     echo "🔧 Container status: docker ps"
+}
+
+# Function to setup secrets in Google Secret Manager (idempotent)
+setup_secrets() {
+    echo "🔐 Setting up Google OAuth secrets..."
+    
+    # Check if backend/.env exists locally
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    ENV_FILE="$SCRIPT_DIR/../backend/.env"
+    
+    if [[ ! -f "$ENV_FILE" ]]; then
+        echo "⚠️  No backend/.env file found. Skipping secret setup."
+        echo "ℹ️  Create backend/.env with GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to enable OAuth"
+        return 0
+    fi
+    
+    # Extract secrets from .env file
+    GOOGLE_CLIENT_ID=$(grep "^GOOGLE_CLIENT_ID=" "$ENV_FILE" | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+    GOOGLE_CLIENT_SECRET=$(grep "^GOOGLE_CLIENT_SECRET=" "$ENV_FILE" | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+    
+    if [[ -z "$GOOGLE_CLIENT_ID" || -z "$GOOGLE_CLIENT_SECRET" ]]; then
+        echo "⚠️  GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not found in .env file"
+        return 0
+    fi
+    
+    # Get compute engine service account
+    COMPUTE_SA=$(gcloud iam service-accounts list --filter="displayName:Compute Engine default service account" --format="value(email)" --project="$GCP_PROJECT_ID")
+    
+    # Create or update secrets
+    echo "📝 Creating/updating Google OAuth secrets..."
+    
+    # Create client ID secret
+    if gcloud secrets describe wendler-google-client-id --project="$GCP_PROJECT_ID" >/dev/null 2>&1; then
+        echo "🔄 Updating existing wendler-google-client-id secret..."
+        echo "$GOOGLE_CLIENT_ID" | gcloud secrets versions add wendler-google-client-id --data-file=- --project="$GCP_PROJECT_ID"
+    else
+        echo "🆕 Creating wendler-google-client-id secret..."
+        echo "$GOOGLE_CLIENT_ID" | gcloud secrets create wendler-google-client-id --data-file=- --project="$GCP_PROJECT_ID"
+    fi
+    
+    # Create client secret
+    if gcloud secrets describe wendler-google-client-secret --project="$GCP_PROJECT_ID" >/dev/null 2>&1; then
+        echo "🔄 Updating existing wendler-google-client-secret secret..."
+        echo "$GOOGLE_CLIENT_SECRET" | gcloud secrets versions add wendler-google-client-secret --data-file=- --project="$GCP_PROJECT_ID"
+    else
+        echo "🆕 Creating wendler-google-client-secret secret..."
+        echo "$GOOGLE_CLIENT_SECRET" | gcloud secrets create wendler-google-client-secret --data-file=- --project="$GCP_PROJECT_ID"
+    fi
+    
+    # Grant access to compute engine service account
+    echo "🔑 Granting access to Compute Engine service account..."
+    gcloud secrets add-iam-policy-binding wendler-google-client-id \
+        --member="serviceAccount:$COMPUTE_SA" \
+        --role="roles/secretmanager.secretAccessor" \
+        --project="$GCP_PROJECT_ID" >/dev/null 2>&1 || true
+    
+    gcloud secrets add-iam-policy-binding wendler-google-client-secret \
+        --member="serviceAccount:$COMPUTE_SA" \
+        --role="roles/secretmanager.secretAccessor" \
+        --project="$GCP_PROJECT_ID" >/dev/null 2>&1 || true
+    
+    echo "✅ Google OAuth secrets configured successfully!"
 }
 
 # Function to setup firewall rule (idempotent)
@@ -324,6 +407,9 @@ echo "🚀 Deploying Wendler 5-3-1 to GCP instance..."
 
 # Setup firewall rule locally
 setup_firewall
+
+# Setup secrets (if .env file exists locally)
+setup_secrets
 
 # Copy scripts to GCP instance
 echo "📁 Copying deployment scripts to GCP instance..."

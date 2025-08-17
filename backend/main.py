@@ -118,7 +118,11 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "frontend_origin": os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")}
+    return {
+        "status": "healthy", 
+        "frontend_origin": os.getenv("FRONTEND_ORIGIN", "http://localhost:3000"),
+        "image": "ghcr.io/the-gigi/wendler-5-3-1:latest"
+    }
 
 @app.get("/auth/{provider}")
 async def login(provider: str, request: Request):

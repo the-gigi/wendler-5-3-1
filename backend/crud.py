@@ -3,7 +3,7 @@ from models import (
     User, UserCreate, UserUpdate,
     OneRM, OneRMCreate, OneRMUpdate,
     WorkoutSchedule, WorkoutScheduleCreate,
-    Cycle, CycleCreate,
+    Cycle, CycleCreate, CycleUpdate,
     Workout, WorkoutCreate, WorkoutUpdate,
     OnboardingData
 )
@@ -288,3 +288,17 @@ def complete_onboarding(session: Session, user_id: int, onboarding_data: Onboard
         "workout_schedule": workout_schedule,
         "cycle": first_cycle
     }
+
+def update_cycle(session: Session, cycle_id: int, cycle_update: CycleUpdate) -> Optional[Cycle]:
+    """Update a cycle"""
+    cycle = session.get(Cycle, cycle_id)
+    if not cycle:
+        return None
+    
+    if cycle_update.start_date is not None:
+        cycle.start_date = cycle_update.start_date
+    
+    session.add(cycle)
+    session.commit()
+    session.refresh(cycle)
+    return cycle

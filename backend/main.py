@@ -16,7 +16,7 @@ from models import (
     User, UserCreate, UserRead, UserComplete,
     OneRM, OneRMCreate, OneRMUpdate, OneRMRead,
     WorkoutSchedule, WorkoutScheduleCreate, WorkoutScheduleRead,
-    Cycle, CycleCreate, CycleRead, CycleWithWorkouts,
+    Cycle, CycleCreate, CycleUpdate, CycleRead, CycleWithWorkouts,
     Workout, WorkoutRead, WorkoutUpdate, WorkoutStatusUpdate,
     OnboardingData
 )
@@ -396,6 +396,20 @@ async def create_next_cycle(current_user: User = Depends(get_current_user), sess
     
     new_cycle = crud.create_cycle(session, current_user.id, cycle_data)
     return {"message": "Next cycle created successfully", "cycle": new_cycle}
+
+@app.put("/cycles/{cycle_id}")
+async def update_cycle(cycle_id: int, cycle_update: CycleUpdate, current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    """Update cycle details"""
+    # Get the cycle and verify it belongs to the user
+    cycle = session.get(Cycle, cycle_id)
+    if not cycle or cycle.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Cycle not found")
+    
+    updated_cycle = crud.update_cycle(session, cycle_id, cycle_update)
+    if not updated_cycle:
+        raise HTTPException(status_code=400, detail="Failed to update cycle")
+    
+    return {"message": "Cycle updated successfully", "cycle": updated_cycle}
 
 @app.post("/workouts/{workout_id}/complete")
 async def complete_workout(workout_id: int, current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):

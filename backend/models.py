@@ -170,6 +170,9 @@ class CycleCreate(SQLModel):
     cycle_number: int
     training_maxes: Dict[str, float]
 
+class CycleUpdate(SQLModel):
+    start_date: Optional[datetime] = None
+
 class CycleRead(CycleBase):
     id: int
     user_id: int

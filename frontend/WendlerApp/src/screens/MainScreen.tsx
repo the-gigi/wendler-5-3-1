@@ -5,14 +5,23 @@ import { OnboardingScreen } from './OnboardingScreen';
 import { TabNavigation } from '../components/TabNavigation';
 import { OneRMScreen } from './OneRMScreen';
 import { CyclesScreen } from './CyclesScreen';
+import { AdminScreen } from './AdminScreen';
 
-const TABS = [
-  { key: 'cycles', title: 'Cycles' },
-  { key: 'records', title: '1RM Records' },
-];
+const getTabsForUser = (isUserAdmin: boolean) => {
+  const baseTabs = [
+    { key: 'cycles', title: 'Cycles' },
+    { key: 'records', title: '1RM Records' },
+  ];
+  
+  if (isUserAdmin) {
+    baseTabs.push({ key: 'admin', title: 'Admin' });
+  }
+  
+  return baseTabs;
+};
 
 export const MainScreen: React.FC = () => {
-  const { user, loading, login, logout } = useAuth();
+  const { user, loading, login, logout, isAdmin } = useAuth();
   const [menuVisible, setMenuVisible] = useState(false);
   const [activeTab, setActiveTab] = useState('cycles');
 
@@ -53,10 +62,18 @@ export const MainScreen: React.FC = () => {
         return <CyclesScreen />;
       case 'records':
         return <OneRMScreen />;
+      case 'admin':
+        return <AdminScreen />;
       default:
         return <CyclesScreen />;
     }
   };
+
+  const isUserAdmin = isAdmin();
+  const availableTabs = getTabsForUser(isUserAdmin);
+  
+  console.log('User admin status:', isUserAdmin);
+  console.log('Available tabs:', availableTabs);
 
   return (
     <View style={styles.container}>
@@ -77,7 +94,7 @@ export const MainScreen: React.FC = () => {
 
       {/* Tab Navigation */}
       <TabNavigation 
-        tabs={TABS} 
+        tabs={availableTabs} 
         activeTab={activeTab} 
         onTabPress={setActiveTab} 
       />
@@ -119,6 +136,17 @@ export const MainScreen: React.FC = () => {
               <TouchableOpacity style={styles.menuItem}>
                 <Text style={styles.menuItemText}>Help</Text>
               </TouchableOpacity>
+              {isAdmin() && (
+                <TouchableOpacity 
+                  style={styles.menuItem} 
+                  onPress={() => {
+                    setActiveTab('admin');
+                    setMenuVisible(false);
+                  }}
+                >
+                  <Text style={styles.adminMenuText}>Admin Dashboard</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity style={styles.logoutMenuItem} onPress={() => {
                 setMenuVisible(false);
                 logout();
@@ -296,6 +324,11 @@ const styles = StyleSheet.create({
   logoutMenuText: {
     fontSize: 16,
     color: '#FF3B30',
+    fontWeight: '500',
+  },
+  adminMenuText: {
+    fontSize: 16,
+    color: '#007AFF',
     fontWeight: '500',
   },
 });

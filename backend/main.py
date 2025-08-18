@@ -112,6 +112,15 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             detail="Could not validate credentials",
         )
 
+# Admin middleware
+async def get_admin_user(current_user: User = Depends(get_current_user)):
+    if current_user.email != "the.gigi@gmail.com":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    return current_user
+
 @app.get("/")
 async def root():
     return {"message": "Wendler 5-3-1 API"}
@@ -478,6 +487,119 @@ async def complete_onboarding(onboarding_data: OnboardingData, current_user: Use
     return {
         "message": "Onboarding completed successfully",
         "data": result
+    }
+
+# Admin endpoints
+@app.get("/admin/stats")
+async def get_admin_stats(admin_user: User = Depends(get_admin_user), session: Session = Depends(get_session)):
+    """Get admin dashboard statistics"""
+    from sqlalchemy import func
+    
+    # Get total users count
+    total_users_stmt = select(func.count(User.id))
+    total_users = session.exec(total_users_stmt).first()
+    
+    # Get active cycles count
+    active_cycles_stmt = select(func.count(Cycle.id)).where(Cycle.is_active == True)
+    active_cycles = session.exec(active_cycles_stmt).first()
+    
+    # Get total cycles count
+    total_cycles_stmt = select(func.count(Cycle.id))
+    total_cycles = session.exec(total_cycles_stmt).first()
+    
+    # Get new users in last 7 days
+    from datetime import timedelta
+    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    new_users_stmt = select(func.count(User.id)).where(User.created_at >= week_ago)
+    new_users_last_week = session.exec(new_users_stmt).first()
+    
+    return {
+        "totalUsers": total_users or 0,
+        "activeCycles": active_cycles or 0,
+        "totalCycles": total_cycles or 0,
+        "lastWeekNewUsers": new_users_last_week or 0
+    }
+
+@app.get("/admin/users")
+async def get_admin_users(limit: int = 100, offset: int = 0, admin_user: User = Depends(get_admin_user), session: Session = Depends(get_session)):
+    """Get all users with basic info for admin"""
+    stmt = select(User).offset(offset).limit(limit).order_by(User.created_at.desc())
+    users = session.exec(stmt).all()
+    
+    return [
+        {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "provider": user.provider,
+            "is_onboarded": user.is_onboarded,
+            "created_at": user.created_at.isoformat(),
+            "updated_at": user.updated_at.isoformat() if user.updated_at else None
+        }
+        for user in users
+    ]
+
+@app.get("/admin/cycles")
+async def get_admin_cycles(limit: int = 100, offset: int = 0, admin_user: User = Depends(get_admin_user), session: Session = Depends(get_session)):
+    """Get all cycles with user info for admin"""
+    from sqlalchemy.orm import selectinload
+    
+    stmt = select(Cycle).options(selectinload(Cycle.user)).offset(offset).limit(limit).order_by(Cycle.created_at.desc())
+    cycles = session.exec(stmt).all()
+    
+    return [
+        {
+            "id": cycle.id,
+            "cycle_number": cycle.cycle_number,
+            "start_date": cycle.start_date.isoformat(),
+            "is_active": cycle.is_active,
+            "training_maxes": cycle.training_maxes,
+            "created_at": cycle.created_at.isoformat(),
+            "user": {
+                "id": cycle.user.id,
+                "name": cycle.user.name,
+                "email": cycle.user.email
+            } if cycle.user else None
+        }
+        for cycle in cycles
+    ]
+
+@app.get("/admin/users/{user_id}")
+async def get_admin_user_detail(user_id: int, admin_user: User = Depends(get_admin_user), session: Session = Depends(get_session)):
+    """Get detailed user information for admin"""
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get user's 1RMs, workout schedule, and cycles
+    user_data = {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "provider": user.provider,
+        "oauth_id": user.oauth_id,
+        "is_onboarded": user.is_onboarded,
+        "created_at": user.created_at.isoformat(),
+        "updated_at": user.updated_at.isoformat() if user.updated_at else None,
+        "one_rms": crud.get_user_one_rms(session, user.id),
+        "workout_schedule": crud.get_user_workout_schedule(session, user.id),
+        "cycles": crud.get_user_cycles(session, user.id)
+    }
+    
+    return user_data
+
+@app.post("/admin/export")
+async def export_admin_data(export_type: str = "users", admin_user: User = Depends(get_admin_user), session: Session = Depends(get_session)):
+    """Export data for admin (placeholder for now)"""
+    if export_type not in ["users", "cycles", "workouts", "all"]:
+        raise HTTPException(status_code=400, detail="Invalid export type. Use: users, cycles, workouts, or all")
+    
+    # This is a placeholder - in a real implementation, you'd generate CSV/JSON files
+    return {
+        "message": f"Export of {export_type} data initiated",
+        "export_type": export_type,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "note": "Export functionality is placeholder - implement file generation as needed"
     }
 
 if __name__ == "__main__":

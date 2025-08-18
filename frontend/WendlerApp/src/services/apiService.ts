@@ -81,6 +81,51 @@ export interface CycleWithWorkouts extends Cycle {
   }>;
 }
 
+export interface AdminStats {
+  totalUsers: number;
+  activeCycles: number;
+  totalCycles: number;
+  lastWeekNewUsers: number;
+}
+
+export interface AdminUser {
+  id: number;
+  name: string;
+  email: string;
+  provider: string;
+  is_onboarded: boolean;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface AdminCycle {
+  id: number;
+  cycle_number: number;
+  start_date: string;
+  is_active: boolean;
+  training_maxes: Record<string, number>;
+  created_at: string;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+}
+
+export interface AdminUserDetail extends AdminUser {
+  oauth_id: string;
+  one_rms: OneRM[];
+  workout_schedule?: WorkoutSchedule;
+  cycles: Cycle[];
+}
+
+export interface ExportResponse {
+  message: string;
+  export_type: string;
+  timestamp: string;
+  note: string;
+}
+
 export class ApiService {
   private static async getAuthHeaders(): Promise<Record<string, string>> {
     const token = await Storage.getItem('jwt_token');
@@ -401,6 +446,90 @@ export class ApiService {
       return await response.json();
     } catch (error) {
       console.error('Error updating workout status:', error);
+      throw error;
+    }
+  }
+
+  // Admin endpoints
+  static async getAdminStats(): Promise<AdminStats> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${BACKEND_URL}/admin/stats`, { headers });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error getting admin stats:', error);
+      throw error;
+    }
+  }
+
+  static async getAdminUsers(limit: number = 100, offset: number = 0): Promise<AdminUser[]> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${BACKEND_URL}/admin/users?limit=${limit}&offset=${offset}`, { headers });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error getting admin users:', error);
+      throw error;
+    }
+  }
+
+  static async getAdminCycles(limit: number = 100, offset: number = 0): Promise<AdminCycle[]> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${BACKEND_URL}/admin/cycles?limit=${limit}&offset=${offset}`, { headers });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error getting admin cycles:', error);
+      throw error;
+    }
+  }
+
+  static async getAdminUserDetail(userId: number): Promise<AdminUserDetail> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${BACKEND_URL}/admin/users/${userId}`, { headers });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error getting admin user detail:', error);
+      throw error;
+    }
+  }
+
+  static async exportAdminData(exportType: string = 'users'): Promise<ExportResponse> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${BACKEND_URL}/admin/export?export_type=${exportType}`, {
+        method: 'POST',
+        headers,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error exporting admin data:', error);
       throw error;
     }
   }

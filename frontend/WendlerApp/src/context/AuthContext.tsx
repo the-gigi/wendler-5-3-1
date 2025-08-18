@@ -8,6 +8,7 @@ interface AuthContextType {
   login: () => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  isAdmin: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -80,12 +81,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const isAdmin = (): boolean => {
+    console.log('Checking admin status for user:', user?.email);
+    const isUserAdmin = user?.email === 'the.gigi@gmail.com';
+    console.log('Is admin:', isUserAdmin);
+    return isUserAdmin;
+  };
+
   const value: AuthContextType = {
     user,
     loading,
     login,
     logout,
     refreshUser,
+    isAdmin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

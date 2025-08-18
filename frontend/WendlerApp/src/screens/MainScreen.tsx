@@ -71,9 +71,6 @@ export const MainScreen: React.FC = () => {
 
   const isUserAdmin = isAdmin();
   const availableTabs = getTabsForUser(isUserAdmin);
-  
-  console.log('User admin status:', isUserAdmin);
-  console.log('Available tabs:', availableTabs);
 
   return (
     <View style={styles.container}>

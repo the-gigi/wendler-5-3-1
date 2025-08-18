@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { ApiService, AdminStats, AdminUser, AdminCycle, ExportResponse } from '../services/apiService';
+import { ApiService, AdminStats, AdminUser, AdminCycle } from '../services/apiService';
 
 export const AdminScreen: React.FC = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState<AdminStats | null>(null);
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [cycles, setCycles] = useState<AdminCycle[]>([]);
+  const [_users, setUsers] = useState<AdminUser[]>([]);
+  const [_cycles, setCycles] = useState<AdminCycle[]>([]);
   const [loading, setLoading] = useState(true);
 
   const isAdmin = user?.email === 'the.gigi@gmail.com';

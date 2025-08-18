@@ -82,10 +82,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const isAdmin = (): boolean => {
-    console.log('Checking admin status for user:', user?.email);
-    const isUserAdmin = user?.email === 'the.gigi@gmail.com';
-    console.log('Is admin:', isUserAdmin);
-    return isUserAdmin;
+    return user?.email === 'the.gigi@gmail.com';
   };
 
   const value: AuthContextType = {

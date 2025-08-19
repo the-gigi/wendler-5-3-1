@@ -46,8 +46,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://the-gigi.github.io", "http://localhost:3000"],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 security = HTTPBearer()
@@ -94,19 +95,27 @@ JWT_ALGORITHM = "HS256"
 # Get current user from JWT token
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), session: Session = Depends(get_session)):
     try:
+        print(f"Authenticating user with token: {credentials.credentials[:20]}...")
         payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         oauth_id = payload.get("sub")
         provider = payload.get("provider")
+        email = payload.get("email")
+        
+        print(f"JWT payload - oauth_id: {oauth_id}, provider: {provider}, email: {email}")
         
         if not oauth_id or not provider:
+            print("Missing oauth_id or provider in JWT")
             raise HTTPException(status_code=401, detail="Invalid token")
         
         user = crud.get_user_by_oauth_id(session, oauth_id, provider)
         if not user:
+            print(f"User not found in database for oauth_id: {oauth_id}, provider: {provider}")
             raise HTTPException(status_code=401, detail="User not found")
         
+        print(f"Authentication successful for user: {user.email}")
         return user
-    except JWTError:
+    except JWTError as e:
+        print(f"JWT Error: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
@@ -114,11 +123,14 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 # Admin middleware
 async def get_admin_user(current_user: User = Depends(get_current_user)):
+    print(f"Admin access check for user: {current_user.email}")
     if current_user.email != "the.gigi@gmail.com":
+        print(f"Admin access denied for: {current_user.email}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
         )
+    print(f"Admin access granted for: {current_user.email}")
     return current_user
 
 @app.get("/")
@@ -132,6 +144,16 @@ async def health():
         "frontend_origin": os.getenv("FRONTEND_ORIGIN", "http://localhost:3000"),
         "image": "ghcr.io/the-gigi/wendler-5-3-1:latest"
     }
+
+@app.get("/cors-test")
+async def cors_test():
+    """Simple endpoint to test CORS configuration"""
+    return {"message": "CORS working", "timestamp": datetime.now(timezone.utc).isoformat()}
+
+@app.get("/admin/test")
+async def admin_test():
+    """Test admin route without authentication"""
+    return {"message": "Admin route accessible", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 @app.get("/auth/{provider}")
 async def login(provider: str, request: Request):

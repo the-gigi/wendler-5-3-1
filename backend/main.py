@@ -509,32 +509,38 @@ async def admin_stats_options():
 @app.get("/admin/stats")
 async def get_admin_stats(admin_user: User = Depends(get_admin_user), session: Session = Depends(get_session)):
     """Get admin dashboard statistics"""
-    from sqlalchemy import func
-    from datetime import timedelta
-    
-    # Get total users count
-    total_users_stmt = select(func.count(User.id))
-    total_users = session.exec(total_users_stmt).first()
-    
-    # Get active cycles count
-    active_cycles_stmt = select(func.count(Cycle.id)).where(Cycle.is_active == True)
-    active_cycles = session.exec(active_cycles_stmt).first()
-    
-    # Get total cycles count
-    total_cycles_stmt = select(func.count(Cycle.id))
-    total_cycles = session.exec(total_cycles_stmt).first()
-    
-    # Get new users in last 7 days
-    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
-    new_users_stmt = select(func.count(User.id)).where(User.created_at >= week_ago)
-    new_users_last_week = session.exec(new_users_stmt).first()
-    
-    return {
-        "totalUsers": total_users or 0,
-        "activeCycles": active_cycles or 0,
-        "totalCycles": total_cycles or 0,
-        "lastWeekNewUsers": new_users_last_week or 0
-    }
+    try:
+        from sqlalchemy import func
+        from datetime import timedelta
+        
+        # Get total users count
+        total_users_stmt = select(func.count(User.id))
+        total_users = session.exec(total_users_stmt).first()
+        
+        # Get active cycles count
+        active_cycles_stmt = select(func.count(Cycle.id)).where(Cycle.is_active == True)
+        active_cycles = session.exec(active_cycles_stmt).first()
+        
+        # Get total cycles count
+        total_cycles_stmt = select(func.count(Cycle.id))
+        total_cycles = session.exec(total_cycles_stmt).first()
+        
+        # Get new users in last 7 days
+        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        new_users_stmt = select(func.count(User.id)).where(User.created_at >= week_ago)
+        new_users_last_week = session.exec(new_users_stmt).first()
+        
+        return {
+            "totalUsers": total_users or 0,
+            "activeCycles": active_cycles or 0,
+            "totalCycles": total_cycles or 0,
+            "lastWeekNewUsers": new_users_last_week or 0
+        }
+    except Exception as e:
+        print(f"Error in admin stats: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Admin stats error: {str(e)}")
 
 @app.options("/admin/users")
 async def admin_users_options():

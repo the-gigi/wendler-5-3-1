@@ -9,7 +9,7 @@ from authlib.integrations.starlette_client import OAuthError
 from jose import JWTError, jwt
 from dotenv import load_dotenv
 import json
-from sqlmodel import Session
+from sqlmodel import Session, select
 from typing import List
 from database import engine, get_session, create_db_and_tables
 from models import (

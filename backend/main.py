@@ -95,27 +95,19 @@ JWT_ALGORITHM = "HS256"
 # Get current user from JWT token
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), session: Session = Depends(get_session)):
     try:
-        print(f"Authenticating user with token: {credentials.credentials[:20]}...")
         payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         oauth_id = payload.get("sub")
         provider = payload.get("provider")
-        email = payload.get("email")
-        
-        print(f"JWT payload - oauth_id: {oauth_id}, provider: {provider}, email: {email}")
         
         if not oauth_id or not provider:
-            print("Missing oauth_id or provider in JWT")
             raise HTTPException(status_code=401, detail="Invalid token")
         
         user = crud.get_user_by_oauth_id(session, oauth_id, provider)
         if not user:
-            print(f"User not found in database for oauth_id: {oauth_id}, provider: {provider}")
             raise HTTPException(status_code=401, detail="User not found")
         
-        print(f"Authentication successful for user: {user.email}")
         return user
-    except JWTError as e:
-        print(f"JWT Error: {e}")
+    except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
@@ -123,14 +115,11 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 # Admin middleware
 async def get_admin_user(current_user: User = Depends(get_current_user)):
-    print(f"Admin access check for user: {current_user.email}")
     if current_user.email != "the.gigi@gmail.com":
-        print(f"Admin access denied for: {current_user.email}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
         )
-    print(f"Admin access granted for: {current_user.email}")
     return current_user
 
 @app.get("/")
@@ -148,12 +137,12 @@ async def health():
 @app.get("/cors-test")
 async def cors_test():
     """Simple endpoint to test CORS configuration"""
-    return {"message": "CORS working", "timestamp": datetime.now(timezone.utc).isoformat()}
+    return {"message": "CORS working", "status": "success"}
 
 @app.get("/admin/test")
 async def admin_test():
     """Test admin route without authentication"""
-    return {"message": "Admin route accessible", "timestamp": datetime.now(timezone.utc).isoformat()}
+    return {"message": "Admin route accessible", "status": "success"}
 
 @app.get("/auth/{provider}")
 async def login(provider: str, request: Request):
@@ -516,45 +505,31 @@ async def complete_onboarding(onboarding_data: OnboardingData, current_user: Use
 async def get_admin_stats(admin_user: User = Depends(get_admin_user), session: Session = Depends(get_session)):
     """Get admin dashboard statistics"""
     from sqlalchemy import func
-    
-    print(f"Admin stats requested by: {admin_user.email}")
+    from datetime import timedelta
     
     # Get total users count
     total_users_stmt = select(func.count(User.id))
     total_users = session.exec(total_users_stmt).first()
-    print(f"Total users: {total_users}")
     
     # Get active cycles count
     active_cycles_stmt = select(func.count(Cycle.id)).where(Cycle.is_active == True)
     active_cycles = session.exec(active_cycles_stmt).first()
-    print(f"Active cycles: {active_cycles}")
     
     # Get total cycles count
     total_cycles_stmt = select(func.count(Cycle.id))
     total_cycles = session.exec(total_cycles_stmt).first()
-    print(f"Total cycles: {total_cycles}")
     
     # Get new users in last 7 days
-    from datetime import timedelta
     week_ago = datetime.now(timezone.utc) - timedelta(days=7)
     new_users_stmt = select(func.count(User.id)).where(User.created_at >= week_ago)
     new_users_last_week = session.exec(new_users_stmt).first()
-    print(f"New users last week: {new_users_last_week}")
     
-    # Also check what users exist
-    all_users_stmt = select(User)
-    all_users = session.exec(all_users_stmt).all()
-    print(f"All users in database: {[u.email for u in all_users]}")
-    
-    result = {
+    return {
         "totalUsers": total_users or 0,
         "activeCycles": active_cycles or 0,
         "totalCycles": total_cycles or 0,
         "lastWeekNewUsers": new_users_last_week or 0
     }
-    
-    print(f"Returning admin stats: {result}")
-    return result
 
 @app.get("/admin/users")
 async def get_admin_users(limit: int = 100, offset: int = 0, admin_user: User = Depends(get_admin_user), session: Session = Depends(get_session)):

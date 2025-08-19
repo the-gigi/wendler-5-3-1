@@ -501,6 +501,11 @@ async def complete_onboarding(onboarding_data: OnboardingData, current_user: Use
     }
 
 # Admin endpoints
+@app.options("/admin/stats")
+async def admin_stats_options():
+    """Handle preflight OPTIONS request for admin stats"""
+    return {}
+
 @app.get("/admin/stats")
 async def get_admin_stats(admin_user: User = Depends(get_admin_user), session: Session = Depends(get_session)):
     """Get admin dashboard statistics"""
@@ -531,15 +536,18 @@ async def get_admin_stats(admin_user: User = Depends(get_admin_user), session: S
         "lastWeekNewUsers": new_users_last_week or 0
     }
 
+@app.options("/admin/users")
+async def admin_users_options():
+    """Handle preflight OPTIONS request for admin users"""
+    return {}
+
 @app.get("/admin/users")
 async def get_admin_users(limit: int = 100, offset: int = 0, admin_user: User = Depends(get_admin_user), session: Session = Depends(get_session)):
     """Get all users with basic info for admin"""
-    print(f"Admin users requested by: {admin_user.email}")
     stmt = select(User).offset(offset).limit(limit).order_by(User.created_at.desc())
     users = session.exec(stmt).all()
-    print(f"Found {len(users)} users for admin view")
     
-    result = [
+    return [
         {
             "id": user.id,
             "name": user.name,
@@ -551,9 +559,11 @@ async def get_admin_users(limit: int = 100, offset: int = 0, admin_user: User = 
         }
         for user in users
     ]
-    
-    print(f"Returning {len(result)} users to admin")
-    return result
+
+@app.options("/admin/cycles")
+async def admin_cycles_options():
+    """Handle preflight OPTIONS request for admin cycles"""
+    return {}
 
 @app.get("/admin/cycles")
 async def get_admin_cycles(limit: int = 100, offset: int = 0, admin_user: User = Depends(get_admin_user), session: Session = Depends(get_session)):

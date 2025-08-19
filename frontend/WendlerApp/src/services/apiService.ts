@@ -453,14 +453,23 @@ export class ApiService {
   // Admin endpoints
   static async getAdminStats(): Promise<AdminStats> {
     try {
+      console.log('Fetching admin stats from:', `${BACKEND_URL}/admin/stats`);
       const headers = await this.getAuthHeaders();
+      console.log('Using headers:', headers);
       const response = await fetch(`${BACKEND_URL}/admin/stats`, { headers });
       
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+      
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Response error text:', errorText);
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
-      return await response.json();
+      const result = await response.json();
+      console.log('Admin stats result:', result);
+      return result;
     } catch (error) {
       console.error('Error getting admin stats:', error);
       throw error;

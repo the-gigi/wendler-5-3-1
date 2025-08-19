@@ -28,20 +28,27 @@ export const AdminScreen: React.FC = () => {
     try {
       setLoading(true);
       
+      console.log('Loading admin stats...');
       // Load admin stats
       const statsResponse = await ApiService.getAdminStats();
+      console.log('Stats response:', statsResponse);
       setStats(statsResponse);
       
+      console.log('Loading admin users and cycles...');
       // Load users and cycles
       const [usersResponse, cyclesResponse] = await Promise.all([
         ApiService.getAdminUsers(),
         ApiService.getAdminCycles()
       ]);
       
+      console.log('Users response:', usersResponse);
+      console.log('Cycles response:', cyclesResponse);
+      
       setUsers(usersResponse);
       setCycles(cyclesResponse);
     } catch (error) {
       console.error('Error loading admin data:', error);
+      console.error('Error details:', error);
       Alert.alert('Error', 'Failed to load admin data. Make sure you have admin access.');
     } finally {
       setLoading(false);

@@ -495,38 +495,54 @@ async def get_admin_stats(admin_user: User = Depends(get_admin_user), session: S
     """Get admin dashboard statistics"""
     from sqlalchemy import func
     
+    print(f"Admin stats requested by: {admin_user.email}")
+    
     # Get total users count
     total_users_stmt = select(func.count(User.id))
     total_users = session.exec(total_users_stmt).first()
+    print(f"Total users: {total_users}")
     
     # Get active cycles count
     active_cycles_stmt = select(func.count(Cycle.id)).where(Cycle.is_active == True)
     active_cycles = session.exec(active_cycles_stmt).first()
+    print(f"Active cycles: {active_cycles}")
     
     # Get total cycles count
     total_cycles_stmt = select(func.count(Cycle.id))
     total_cycles = session.exec(total_cycles_stmt).first()
+    print(f"Total cycles: {total_cycles}")
     
     # Get new users in last 7 days
     from datetime import timedelta
     week_ago = datetime.now(timezone.utc) - timedelta(days=7)
     new_users_stmt = select(func.count(User.id)).where(User.created_at >= week_ago)
     new_users_last_week = session.exec(new_users_stmt).first()
+    print(f"New users last week: {new_users_last_week}")
     
-    return {
+    # Also check what users exist
+    all_users_stmt = select(User)
+    all_users = session.exec(all_users_stmt).all()
+    print(f"All users in database: {[u.email for u in all_users]}")
+    
+    result = {
         "totalUsers": total_users or 0,
         "activeCycles": active_cycles or 0,
         "totalCycles": total_cycles or 0,
         "lastWeekNewUsers": new_users_last_week or 0
     }
+    
+    print(f"Returning admin stats: {result}")
+    return result
 
 @app.get("/admin/users")
 async def get_admin_users(limit: int = 100, offset: int = 0, admin_user: User = Depends(get_admin_user), session: Session = Depends(get_session)):
     """Get all users with basic info for admin"""
+    print(f"Admin users requested by: {admin_user.email}")
     stmt = select(User).offset(offset).limit(limit).order_by(User.created_at.desc())
     users = session.exec(stmt).all()
+    print(f"Found {len(users)} users for admin view")
     
-    return [
+    result = [
         {
             "id": user.id,
             "name": user.name,
@@ -538,6 +554,9 @@ async def get_admin_users(limit: int = 100, offset: int = 0, admin_user: User = 
         }
         for user in users
     ]
+    
+    print(f"Returning {len(result)} users to admin")
+    return result
 
 @app.get("/admin/cycles")
 async def get_admin_cycles(limit: int = 100, offset: int = 0, admin_user: User = Depends(get_admin_user), session: Session = Depends(get_session)):

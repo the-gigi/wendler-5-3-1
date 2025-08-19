@@ -602,6 +602,47 @@ async def export_admin_data(export_type: str = "users", admin_user: User = Depen
         "note": "Export functionality is placeholder - implement file generation as needed"
     }
 
+@app.delete("/admin/users/{user_id}")
+async def delete_admin_user(user_id: int, admin_user: User = Depends(get_admin_user), session: Session = Depends(get_session)):
+    """Delete a user and all associated data (cascading delete)"""
+    user_to_delete = session.get(User, user_id)
+    if not user_to_delete:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user_to_delete.email == "the.gigi@gmail.com":
+        raise HTTPException(status_code=403, detail="Cannot delete admin user")
+    
+    # SQLAlchemy will handle cascading deletes based on relationships
+    session.delete(user_to_delete)
+    session.commit()
+    
+    return {"message": f"User {user_to_delete.name} and all associated data deleted successfully"}
+
+@app.delete("/admin/cycles/{cycle_id}")
+async def delete_admin_cycle(cycle_id: int, admin_user: User = Depends(get_admin_user), session: Session = Depends(get_session)):
+    """Delete a cycle and all associated workouts"""
+    cycle_to_delete = session.get(Cycle, cycle_id)
+    if not cycle_to_delete:
+        raise HTTPException(status_code=404, detail="Cycle not found")
+    
+    # SQLAlchemy will handle cascading deletes for workouts
+    session.delete(cycle_to_delete)
+    session.commit()
+    
+    return {"message": f"Cycle {cycle_to_delete.cycle_number} and all associated workouts deleted successfully"}
+
+@app.delete("/admin/workouts/{workout_id}")
+async def delete_admin_workout(workout_id: int, admin_user: User = Depends(get_admin_user), session: Session = Depends(get_session)):
+    """Delete a specific workout"""
+    workout_to_delete = session.get(Workout, workout_id)
+    if not workout_to_delete:
+        raise HTTPException(status_code=404, detail="Workout not found")
+    
+    session.delete(workout_to_delete)
+    session.commit()
+    
+    return {"message": f"Workout deleted successfully"}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000, access_log=False)

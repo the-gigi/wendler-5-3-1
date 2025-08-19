@@ -533,4 +533,61 @@ export class ApiService {
       throw error;
     }
   }
+
+  static async deleteAdminUser(userId: number): Promise<{ message: string }> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${BACKEND_URL}/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error deleting admin user:', error);
+      throw error;
+    }
+  }
+
+  static async deleteAdminCycle(cycleId: number): Promise<{ message: string }> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${BACKEND_URL}/admin/cycles/${cycleId}`, {
+        method: 'DELETE',
+        headers,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error deleting admin cycle:', error);
+      throw error;
+    }
+  }
+
+  static async deleteAdminWorkout(workoutId: number): Promise<{ message: string }> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${BACKEND_URL}/admin/workouts/${workoutId}`, {
+        method: 'DELETE',
+        headers,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error deleting admin workout:', error);
+      throw error;
+    }
+  }
 }
